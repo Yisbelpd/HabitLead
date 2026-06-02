@@ -1,0 +1,6 @@
+{
+  "name": "Registro de Hábitos Saludables",
+  "description": "Una aplicación minimalista y moderna para registrar hábitos diarios en 5 áreas clave y canjear insignias por recompensas saludables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
