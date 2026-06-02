@@ -1,9 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-dark: #2D3142;
-  --color-brand-malva: #B59EB5;
-  --color-brand-malva-light: #E3D7E5;
+  --color-brand-dark: #2D2D30;
+  --color-brand-mid-dark: #4A2E4B;
+  --color-brand-malva: #7A5C7A;
+  --color-brand-malva-light: #E6D7E6;
   --color-brand-white: #FFFFFF;
 }
 
+@layer base {
+  .bg-meditation-gradient {
+    background: linear-gradient(135deg, #2D2D30 0%, #4A2E4B 50%, #7A5C7A 100%);
+    background-attachment: fixed;
+  }
+}

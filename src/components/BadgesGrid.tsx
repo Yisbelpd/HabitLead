@@ -36,7 +36,7 @@ export function BadgesGrid({ badges }: BadgesGridProps) {
               {/* Badge Visual Design */}
               <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-2 shadow-sm transition-transform duration-300 group-hover:scale-105 ${
                 isUnlocked
-                  ? `bg-gradient-to-tr ${badge.color} text-brand-dark`
+                  ? 'bg-meditation-gradient text-white border border-white/10'
                   : 'bg-brand-malva-light/30 text-brand-dark/40'
               }`}>
                 <Icon name={badge.icon} size={24} />
@@ -66,7 +66,7 @@ export function BadgesGrid({ badges }: BadgesGridProps) {
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-xl border border-brand-malva-light animate-in fade-in zoom-in duration-200">
             <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-4 ${
               selectedBadge.unlockedAt
-                ? `bg-gradient-to-tr ${selectedBadge.color} text-brand-dark shadow-md`
+                ? 'bg-meditation-gradient text-white border border-white/10 shadow-md'
                 : 'bg-brand-malva-light/20 text-brand-dark/40 border border-brand-malva-light/50'
             }`}>
               <Icon name={selectedBadge.icon} size={36} />

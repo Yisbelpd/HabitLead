@@ -43,22 +43,22 @@ export function HabitCard({ area, currentLog, onSave, onClear }: HabitCardProps)
   const isPink = area.color === 'pink';
   const colorClasses = isPink
     ? {
-        border: 'border-brand-malva-light/60 hover:border-brand-malva',
-        bg: 'bg-brand-malva-light/10',
-        badge: 'bg-brand-malva-light text-brand-dark font-semibold',
+        border: 'border-brand-malva/40 hover:border-brand-malva',
+        bg: 'bg-brand-malva-light/15',
+        badge: 'bg-brand-malva text-white font-bold',
         text: 'text-brand-malva',
         primaryBtn: 'bg-brand-malva hover:bg-brand-dark text-white shadow-sm',
-        iconBg: 'bg-brand-malva-light/20',
-        borderCompleted: 'border-brand-malva bg-gradient-to-br from-white to-brand-malva-light/20'
+        iconBg: 'bg-brand-malva-light/30',
+        borderCompleted: 'border-brand-malva bg-white'
       }
     : {
         border: 'border-brand-malva-light hover:border-brand-dark',
         bg: 'bg-brand-malva-light/15',
-        badge: 'bg-brand-dark text-white font-semibold',
+        badge: 'bg-brand-dark text-white font-bold',
         text: 'text-brand-dark',
         primaryBtn: 'bg-brand-dark hover:bg-brand-malva text-white shadow-sm',
-        iconBg: 'bg-brand-malva-light/10',
-        borderCompleted: 'border-brand-malva-light bg-gradient-to-br from-white to-brand-malva-light/25'
+        iconBg: 'bg-brand-malva-light/20',
+        borderCompleted: 'border-brand-malva-light bg-white'
       };
 
   return (
@@ -66,8 +66,8 @@ export function HabitCard({ area, currentLog, onSave, onClear }: HabitCardProps)
       id={`habit-card-${area.id}`}
       className={`p-5 rounded-2xl border transition-all duration-300 ${
         isCompleted 
-          ? `${colorClasses.borderCompleted} shadow-sm shadow-brand-malva-light/30` 
-          : 'border-brand-malva-light/40 bg-white hover:shadow-md hover:shadow-brand-malva-light/20'
+          ? 'border-brand-malva bg-white shadow-lg shadow-black/10' 
+          : 'border-brand-malva-light/40 bg-white shadow-md hover:shadow-lg transition-all'
       }`}
     >
       <div className="flex items-start justify-between">
@@ -96,7 +96,7 @@ export function HabitCard({ area, currentLog, onSave, onClear }: HabitCardProps)
             <button
               id={`btn-start-${area.id}`}
               onClick={() => setIsEditing(true)}
-              className={`text-brand-dark hover:text-white hover:bg-brand-malva px-3 py-1.5 text-xs font-bold rounded-xl border border-brand-malva-light/70 transition-all flex items-center gap-1.5 cursor-pointer`}
+              className="bg-meditation-gradient text-white hover:opacity-90 px-3 py-1.5 text-xs font-bold rounded-xl border border-white/10 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.02]"
             >
               <Icon name="Plus" size={14} />
               Registrar

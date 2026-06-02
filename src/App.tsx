@@ -15,21 +15,30 @@ export default function App() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(TODAY_STR);
   const [username, setUsername] = useState<string>('Invitado');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
+  const [viewOverride, setViewOverride] = useState<'landing' | 'app' | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
     const savedLogs = localStorage.getItem('salud_habit_logs');
     const savedRewards = localStorage.getItem('salud_rewards');
     const savedName = localStorage.getItem('salud_username');
+    const savedEmail = localStorage.getItem('salud_user_email');
 
     if (savedLogs) setLogs(JSON.parse(savedLogs));
     if (savedRewards) {
       setRewards(JSON.parse(savedRewards));
     } else {
       setRewards(INITIAL_REWARDS);
+    }
+    if (savedEmail) {
+      setUserEmail(savedEmail);
+      setEmailInput(savedEmail);
     }
     if (savedName) {
       setUsername(savedName);
@@ -53,6 +62,11 @@ export default function App() {
   const saveUsername = (newName: string) => {
     setUsername(newName);
     localStorage.setItem('salud_username', newName);
+  };
+
+  const saveUserEmail = (newEmail: string) => {
+    setUserEmail(newEmail);
+    localStorage.setItem('salud_user_email', newEmail);
   };
 
   // Helper lists of dates for selection (past 5 days + today)
@@ -223,10 +237,14 @@ export default function App() {
       localStorage.removeItem('salud_habit_logs');
       localStorage.removeItem('salud_rewards');
       localStorage.removeItem('salud_username');
+      localStorage.removeItem('salud_user_email');
       setLogs([]);
       setRewards(INITIAL_REWARDS);
       setUsername('Invitado');
       setNameInput('Invitado');
+      setUserEmail('');
+      setEmailInput('');
+      setEmailError('');
       setSelectedDate(TODAY_STR);
       setShowNotification({
         show: true,
@@ -235,6 +253,48 @@ export default function App() {
       });
       setTimeout(() => setShowNotification(null), 3000);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('salud_user_email');
+    setUserEmail('');
+    setEmailInput('');
+    setEmailError('');
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = emailInput.trim();
+    if (!cleanEmail) {
+      setEmailError('El correo de Gmail es obligatorio.');
+      return;
+    }
+    if (!cleanEmail.includes('@')) {
+      setEmailError('Por favor introduce un correo válido.');
+      return;
+    }
+    if (!cleanEmail.toLowerCase().endsWith('@gmail.com')) {
+      setEmailError('Debe ser un correo con terminación @gmail.com.');
+      return;
+    }
+
+    setEmailError('');
+    const prefix = cleanEmail.split('@')[0];
+    const defaultUsername = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    
+    saveUserEmail(cleanEmail);
+    // If username is currently Default/Invitado, replace with defaultUsername
+    if (username === 'Invitado') {
+      saveUsername(defaultUsername);
+      setNameInput(defaultUsername);
+    }
+
+    setShowNotification({
+      show: true,
+      title: '¡Acceso Correcto!',
+      desc: `Bienvenido de vuelta. Tu sesión ha sido iniciada de forma segura.`
+    });
+    setTimeout(() => setShowNotification(null), 4000);
   };
 
   // Stats calculation
@@ -287,13 +347,14 @@ export default function App() {
   };
 
   const currentStreak = getStreakCount();
+  const shouldShowLanding = viewOverride === 'landing' || (!userEmail && viewOverride !== 'app');
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-malva-light/10 to-white/40 text-brand-dark pb-12 font-sans selection:bg-brand-malva-light/55 selection:text-brand-dark">
+    <div className="min-h-screen bg-meditation-gradient text-white pb-12 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
       
       {/* Visual Floating Notifications Container */}
       {showNotification && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full bg-white border border-brand-malva rounded-2xl shadow-xl shadow-brand-malva-light/35 p-4 flex gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full bg-white border border-brand-malva rounded-2xl shadow-xl shadow-black/30 p-4 flex gap-3 animate-in fade-in slide-in-from-top-4 duration-300 text-brand-dark">
           <div className="p-2 bg-brand-malva-light/30 text-brand-dark rounded-xl h-fit">
             <Icon name="Crown" size={20} className="animate-bounce text-brand-malva" />
           </div>
@@ -307,194 +368,403 @@ export default function App() {
         </div>
       )}
 
-      {/* Primary Container */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        
-        {/* Navigation Bar Header */}
-        <header className="py-6 flex items-center justify-between border-b border-brand-malva-light/40 mb-8" id="app-header">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-dark via-brand-malva to-brand-malva-light flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              <Icon name="Sparkle" size={20} className="animate-spin-slow text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                {isEditingName ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      maxLength={18}
-                      className="text-sm font-bold border-b border-brand-malva focus:outline-none px-1 py-0.5 bg-transparent w-28 text-brand-dark"
-                    />
-                    <button onClick={handleSaveName} className="text-emerald-700 hover:text-emerald-900 p-0.5 cursor-pointer" title="Guardar">
-                      <Icon name="Check" size={14} />
-                    </button>
-                    <button onClick={() => { setIsEditingName(false); setNameInput(username); }} className="text-brand-dark/40 hover:text-brand-dark p-0.5 cursor-pointer" title="Cancelar">
-                      <Icon name="X" size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <h1 className="text-base font-bold text-brand-dark">Bienestar {username}</h1>
-                    <button onClick={() => setIsEditingName(true)} className="p-1 rounded hover:bg-brand-malva-light/35 transition-colors cursor-pointer" title="Editar nombre">
-                      <span className="text-[10px] bg-brand-malva-light/50 text-brand-dark px-1.5 py-0.5 rounded hover:bg-brand-malva transition-all font-semibold">Editar</span>
-                    </button>
-                  </>
-                )}
-              </div>
-              <p className="text-[11px] text-brand-dark/50 font-medium">Hoy es Sáb. 30 mayo, 2026</p>
-            </div>
+      {shouldShowLanding ? (
+        /* Welcome / Login Landing Screen */
+        <div className="min-h-[85vh] flex flex-col items-center justify-center px-4 py-12 transition-all duration-500">
+          
+          {/* Logo container */}
+          <div className="w-32 h-32 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-white shadow-2xl mb-8 relative hover:scale-105 transition-all">
+            <div className="absolute inset-0 bg-brand-malva/20 rounded-3xl blur-md animate-pulse" />
+            <svg className="w-24 h-24 relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Outer soft circle drop boundary */}
+              <circle cx="50" cy="50" r="44" stroke="url(#logo-stroke-grad)" strokeWidth="1.5" strokeOpacity="0.15" />
+              
+              {/* Central vertical stem */}
+              <path d="M50 32V75" stroke="url(#logo-stroke-grad)" strokeWidth="5.5" strokeLinecap="round" />
+              
+              {/* Left cradle leaf outer curve */}
+              <path d="M47 67C43 67 40 59 40 42C40 36 41 33 41 30" stroke="url(#logo-stroke-grad)" strokeWidth="3" strokeLinecap="round" />
+              
+              {/* Left cradle leaf inner curve */}
+              <path d="M47 57C44 54 42 47 42 38V30" stroke="url(#logo-stroke-grad)" strokeWidth="3" strokeLinecap="round" />
+              
+              {/* Right cradle leaf outer curve */}
+              <path d="M53 67C57 67 60 59 60 42C60 36 59 33 59 30" stroke="url(#logo-stroke-grad)" strokeWidth="3" strokeLinecap="round" />
+              
+              {/* Right cradle leaf inner curve */}
+              <path d="M53 57C56 54 58 47 58 38V30" stroke="url(#logo-stroke-grad)" strokeWidth="3" strokeLinecap="round" />
+              
+              {/* Back center pointed petal of the Tulip */}
+              <path d="M50 18C47 21 46 24 46 26C50 24 50 24 54 26C54 24 53 21 50 18Z" fill="url(#logo-stroke-grad)" fillOpacity="0.55" stroke="url(#logo-stroke-grad)" strokeWidth="2.5" strokeLinejoin="round" />
+              
+              {/* Left Tulip Petal */}
+              <path d="M50 41C44 41 44 26 49 19C47 26 49 34 50 41Z" fill="url(#logo-stroke-grad)" fillOpacity="0.8" stroke="url(#logo-stroke-grad)" strokeWidth="2.5" strokeLinejoin="round" />
+              
+              {/* Right Tulip Petal overlapping */}
+              <path d="M50 41C56 41 56 26 51 19C53 26 51 34 50 41Z" fill="url(#logo-stroke-grad)" fillOpacity="0.9" stroke="url(#logo-stroke-grad)" strokeWidth="2.5" strokeLinejoin="round" />
+              
+              <defs>
+                <linearGradient id="logo-stroke-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#FFFFFF" />
+                  <stop offset="35%" stopColor="#F8F2F8" />
+                  <stop offset="75%" stopColor="#E6D7E6" />
+                  <stop offset="100%" stopColor="#D4BCD4" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Real Streaks Indicator */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-malva-light/30 border border-brand-malva-light text-brand-dark font-bold text-xs transition-transform hover:scale-102">
-              <Icon name="Zap" size={14} className="text-brand-malva fill-brand-malva-light/20" />
-              <span>Racha: {currentStreak} {currentStreak === 1 ? 'día' : 'días'}</span>
-            </div>
+          {/* Title & Slogan */}
+          <h1 className="text-4xl font-black text-white tracking-tight mb-2 text-center">
+            HabitLead
+          </h1>
+          <p className="text-xs font-mono tracking-widest text-brand-malva-light/90 uppercase font-extrabold mb-5 text-center">
+            Lidera tu Bienestar • Hábitos Saludables
+          </p>
 
-            <button
-              onClick={handleResetApp}
-              className="p-2 text-brand-dark/40 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-              title="Reiniciar datos de la app"
-            >
-              <Icon name="Trash2" size={16} />
-            </button>
-          </div>
-        </header>
+          {/* Subtitle / Description */}
+          <p className="text-sm text-brand-malva-light/80 max-w-md text-center leading-relaxed mb-10 font-medium">
+            El espacio ideal para registrar tu hidratación, movimiento, sueño, paz mental y alimentación balanceada. Desbloquea insignias exclusivas de la paleta y canjea contenidos de meditación de forma offline.
+          </p>
 
-        {/* Hero Section Banner with Calendar Picker & Daily ring progress */}
-        <section className="bg-brand-dark text-white rounded-3xl p-6 md:p-8 mb-8 shadow-xl shadow-brand-dark/20 overflow-hidden relative" id="hero-progress">
-          {/* Subtle Aesthetic Glow Accents in Brand Background */}
-          <div className="absolute right-0 top-0 w-64 h-64 bg-brand-malva/15 rounded-full blur-[80px]" />
-          <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-brand-malva-light/15 rounded-full blur-[60px]" />
+          {/* Onboarding Glassmorphism Login Card */}
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/80 text-brand-dark">
+            <h2 className="text-lg font-bold text-brand-dark mb-1 flex items-center gap-2 justify-center">
+              <Icon name="Unlock" className="text-brand-malva" size={18} />
+              Ingresar a mi Registro
+            </h2>
+            <p className="text-xs text-brand-dark/60 text-center mb-6">
+              Sincroniza y resguarda tu tablero de bienestar con tu correo electrónico de Google.
+            </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
-            {/* Visual Progress ring */}
-            <div className="md:col-span-8 space-y-4">
-              <span className="text-[10px] font-mono tracking-widest uppercase text-brand-malva-light font-bold bg-brand-malva/30 border border-brand-malva-light/30 px-2.5 py-1 rounded-full">
-                Mi progreso diario
-              </span>
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-1">
-                ¿Qué hábitos saludables cultivarás hoy?
-              </h2>
-              <p className="text-xs text-brand-malva-light/75 max-w-md leading-relaxed">
-                Cada área cuenta en tu salud holística. Completa hoy las 5 metas y desbloquearás la insignia <span className="text-white font-extrabold underline decoration-brand-malva decoration-2">Bienestar Total</span>.
-              </p>
-
-              {/* Progress Bar & Value Display */}
-              <div className="space-y-2 pt-2">
-                <div className="flex justify-between items-end text-xs">
-                  <span className="text-brand-malva-light font-bold">{completedTodayCount} de 5 completados</span>
-                  <span className="text-brand-malva-light font-mono font-bold text-sm bg-brand-malva/25 px-2 py-0.5 rounded border border-brand-malva-light/10">{progressPercentage}%</span>
-                </div>
-                <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden border border-white/5">
-                  <div
-                    className="h-full bg-gradient-to-r from-brand-malva to-brand-malva-light transition-all duration-700 ease-out rounded-full"
-                    style={{ width: `${progressPercentage}%` }}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold text-brand-dark/70 mb-1.5 uppercase tracking-wider">
+                  Correo de Gmail
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-brand-dark/40 pointer-events-none">
+                    <Icon name="Mail" size={15} />
+                  </span>
+                  <input
+                    type="text"
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      setEmailError('');
+                    }}
+                    placeholder="tu-correo@gmail.com"
+                    className="w-full pl-10 pr-3 py-3 bg-brand-malva-light/20 border border-brand-malva-light rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva focus:ring-1 focus:ring-brand-malva text-brand-dark placeholder:text-brand-dark/45 transition-colors"
                   />
                 </div>
+                {emailError && (
+                  <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100">
+                    <Icon name="AlertCircle" size={12} />
+                    {emailError}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
+              >
+                <Icon name="LogIn" size={14} />
+                Comenzar mi Registro
+              </button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-brand-malva-light/60 text-center">
+              <div className="flex justify-center gap-4 text-brand-dark/50">
+                <div className="flex items-center gap-1 text-[10px] font-bold">
+                  <Icon name="Shield" size={11} className="text-emerald-700" />
+                  Privado
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-bold">
+                  <Icon name="Zap" size={11} className="text-amber-600" />
+                  Inmediato
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-bold">
+                  <Icon name="Heart" size={11} className="text-rose-600" />
+                  Holístico
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      ) : (
+        /* Primary App Dashboard */
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 animate-in fade-in duration-300">
+          
+          {/* Navigation Bar Header */}
+          <header className="py-6 flex items-center justify-between border-b border-white/10 mb-8" id="app-header">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white shadow-sm relative overflow-hidden">
+                <div className="absolute inset-0 bg-brand-malva/10" />
+                <svg className="w-8 h-8 relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Central vertical stem */}
+                  <path d="M50 32V75" stroke="url(#header-logo-stroke)" strokeWidth="6" strokeLinecap="round" />
+                  
+                  {/* Left cradle leaf outer curve */}
+                  <path d="M47 67C43 67 40 59 40 42C40 36 41 33 41 30" stroke="url(#header-logo-stroke)" strokeWidth="4.5" strokeLinecap="round" />
+                  
+                  {/* Left cradle leaf inner curve */}
+                  <path d="M47 57C44 54 42 47 42 38V30" stroke="url(#header-logo-stroke)" strokeWidth="4.5" strokeLinecap="round" />
+                  
+                  {/* Right cradle leaf outer curve */}
+                  <path d="M53 67C57 67 60 59 60 42C60 36 59 33 59 30" stroke="url(#header-logo-stroke)" strokeWidth="4.5" strokeLinecap="round" />
+                  
+                  {/* Right cradle leaf inner curve */}
+                  <path d="M53 57C56 54 58 47 58 38V30" stroke="url(#header-logo-stroke)" strokeWidth="4.5" strokeLinecap="round" />
+                  
+                  {/* Back center pointed petal of the Tulip */}
+                  <path d="M50 18C47 21 46 24 46 26C50 24 50 24 54 26C54 24 53 21 50 18Z" fill="url(#header-logo-stroke)" fillOpacity="0.55" stroke="url(#header-logo-stroke)" strokeWidth="3" strokeLinejoin="round" />
+                  
+                  {/* Left Tulip Petal */}
+                  <path d="M50 41C44 41 44 26 49 19C47 26 49 34 50 41Z" fill="url(#header-logo-stroke)" fillOpacity="0.8" stroke="url(#header-logo-stroke)" strokeWidth="3" strokeLinejoin="round" />
+                  
+                  {/* Right Tulip Petal overlapping */}
+                  <path d="M50 41C56 41 56 26 51 19C53 26 51 34 50 41Z" fill="url(#header-logo-stroke)" fillOpacity="0.9" stroke="url(#header-logo-stroke)" strokeWidth="3" strokeLinejoin="round" />
+                  
+                  <defs>
+                    <linearGradient id="header-logo-stroke" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#FFFFFF" />
+                      <stop offset="35%" stopColor="#F8F2F8" />
+                      <stop offset="75%" stopColor="#E6D7E6" />
+                      <stop offset="100%" stopColor="#D4BCD4" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        maxLength={18}
+                        className="text-sm font-bold border-b border-brand-malva-light focus:outline-none px-1 py-0.5 bg-transparent w-28 text-white"
+                      />
+                      <button onClick={handleSaveName} className="text-emerald-400 hover:text-emerald-300 p-0.5 cursor-pointer" title="Guardar">
+                        <Icon name="Check" size={14} />
+                      </button>
+                      <button onClick={() => { setIsEditingName(false); setNameInput(username); }} className="text-white/60 hover:text-white p-0.5 cursor-pointer" title="Cancelar">
+                        <Icon name="X" size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h1 className="text-base font-bold text-white">{username} • HabitLead</h1>
+                      <button onClick={() => setIsEditingName(true)} className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer" title="Editar nombre">
+                        <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded hover:bg-white/30 transition-all font-semibold">Editar</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="text-[10px] text-brand-malva-light/75 font-semibold">{userEmail || 'vista-previa@habitlead.com'}</p>
               </div>
             </div>
 
-            {/* Calendar & Streak selector */}
-            <div className="md:col-span-4 bg-black/35 border border-brand-malva-light/20 p-4 rounded-2xl flex flex-col items-center justify-between">
-              <span className="text-[10px] font-mono text-brand-malva-light/60 mb-3 font-semibold">Historial de la semana</span>
-              <div className="flex gap-1.5 w-full justify-between mb-4">
-                {AVAILABLE_DATES.map((d) => {
-                  const loggedOnThatDay = logs.filter(l => l.date === d.date);
-                  const isDateSelected = selectedDate === d.date;
-                  const score = loggedOnThatDay.length;
-
-                  return (
-                    <button
-                      key={d.date}
-                      onClick={() => setSelectedDate(d.date)}
-                      className={`flex-1 flex flex-col items-center p-2 rounded-xl border transition-all cursor-pointer ${
-                        isDateSelected
-                          ? 'bg-brand-malva/20 border-brand-malva-light text-white shadow-inner'
-                          : 'bg-black/15 border-white/10 text-brand-malva-light/60 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-[9px] font-bold leading-none block mb-1.5">{d.label.split(' ')[0]}</span>
-                      {/* Small visual logs indicator counter inside circle */}
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                        score === 5 
-                          ? 'bg-gradient-to-tr from-brand-malva to-brand-malva-light text-white animate-pulse'
-                          : score > 0 
-                            ? 'bg-brand-malva-light/35 text-white border border-brand-malva-light/30' 
-                            : 'bg-white/5 text-white/30'
-                      }`}>
-                        {score}
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="flex items-center gap-2">
+              {/* Real Streaks Indicator */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white font-bold text-xs transition-transform hover:scale-102">
+                <Icon name="Zap" size={14} className="text-brand-malva-light fill-brand-malva-light/20" />
+                <span>Racha: {currentStreak} {currentStreak === 1 ? 'día' : 'días'}</span>
               </div>
 
-              <div className="w-full text-center">
-                <p className="text-[10px] text-brand-malva-light/70 font-semibold">
-                  Viendo logs del:{' '}
-                  <span className="text-white font-bold block mt-0.5">
-                    {new Date(selectedDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
-                  </span>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-white/40 hover:text-white hover:bg-white/15 rounded-xl transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <Icon name="LogOut" size={16} />
+              </button>
+
+              <button
+                onClick={handleResetApp}
+                className="p-2 text-white/40 hover:text-red-400 hover:bg-white/15 rounded-xl transition-all cursor-pointer"
+                title="Reiniciar todos mis datos"
+              >
+                <Icon name="Trash2" size={16} />
+              </button>
+            </div>
+          </header>
+
+          {/* Hero Section Banner with Calendar Picker & Daily ring progress */}
+          <section className="bg-black/25 border border-white/10 text-white rounded-3xl p-6 md:p-8 mb-8 shadow-xl shadow-black/15 overflow-hidden relative" id="hero-progress">
+            {/* Subtle Aesthetic Glow Accents in Brand Background */}
+            <div className="absolute right-0 top-0 w-64 h-64 bg-brand-malva/20 rounded-full blur-[80px]" />
+            <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-brand-malva-light/10 rounded-full blur-[60px]" />
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
+              {/* Visual Progress ring */}
+              <div className="md:col-span-8 space-y-4">
+                <span className="text-[10px] font-mono tracking-widest uppercase text-brand-malva-light font-bold bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
+                  Mi progreso diario
+                </span>
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-1">
+                  ¿Qué hábitos saludables cultivarás hoy?
+                </h2>
+                <p className="text-xs text-brand-malva-light/85 max-w-md leading-relaxed font-medium">
+                  Cada área cuenta en tu salud holística. Completa hoy las 5 metas y desbloquearás la insignia <span className="text-white font-extrabold underline decoration-brand-malva-light decoration-2">Bienestar Total</span>.
                 </p>
+
+                {/* Progress Bar & Value Display */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex justify-between items-end text-xs">
+                    <span className="text-brand-malva-light font-bold">{completedTodayCount} de 5 completados</span>
+                    <span className="text-brand-malva-light font-mono font-bold text-sm bg-white/10 px-2 py-0.5 rounded border border-white/10">{progressPercentage}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-white/15 rounded-full overflow-hidden border border-white/5">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-malva-light to-white transition-all duration-700 ease-out rounded-full"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Calendar & Streak selector */}
+              <div className="md:col-span-4 bg-black/40 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-between">
+                <span className="text-[10px] font-mono text-brand-malva-light/70 mb-3 font-semibold">Historial de la semana</span>
+                <div className="flex gap-1.5 w-full justify-between mb-4">
+                  {AVAILABLE_DATES.map((d) => {
+                    const loggedOnThatDay = logs.filter(l => l.date === d.date);
+                    const isDateSelected = selectedDate === d.date;
+                    const score = loggedOnThatDay.length;
+
+                    return (
+                      <button
+                        key={d.date}
+                        onClick={() => setSelectedDate(d.date)}
+                        className={`flex-1 flex flex-col items-center p-2 rounded-xl border transition-all cursor-pointer ${
+                          isDateSelected
+                            ? 'bg-white/15 border-white text-white shadow-inner'
+                            : 'bg-black/20 border-white/10 text-brand-malva-light/65 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-[9px] font-bold leading-none block mb-1.5">{d.label.split(' ')[0]}</span>
+                        {/* Small visual logs indicator counter inside circle */}
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                          score === 5 
+                            ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark animate-pulse'
+                            : score > 0 
+                              ? 'bg-white/20 text-white border border-white/30' 
+                              : 'bg-white/5 text-white/30'
+                        }`}>
+                          {score}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="w-full text-center">
+                  <p className="text-[10px] text-brand-malva-light/80 font-semibold">
+                    Viendo logs del:{' '}
+                    <span className="text-white font-bold block mt-0.5">
+                      {new Date(selectedDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Master Active Habits Cards Dashboard (5 areas list) */}
-        <section className="space-y-6 mb-8" id="habits-dashboard">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-brand-dark">Tus Hábitos del Día</h2>
-              <p className="text-xs text-brand-dark/60">Presiona "Registrar" en cada área para registrar tu actividad realizada hoy.</p>
+          {/* Master Active Habits Cards Dashboard (5 areas list) */}
+          <section className="space-y-6 mb-8" id="habits-dashboard">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-white">Tus Hábitos del Día</h2>
+                <p className="text-xs text-brand-malva-light/80 font-medium">Presiona "Registrar" en cada área para registrar tu actividad realizada hoy.</p>
+              </div>
+              
+              <div className="text-[11px] font-bold text-white bg-white/10 border border-white/20 rounded-lg px-3 py-1 flex items-center gap-1.5 shadow-sm">
+                <span className="inline-block w-2 h-2 rounded-full bg-brand-malva-light animate-pulse" />
+                <span>Actualizado hoy</span>
+              </div>
             </div>
-            
-            <div className="text-[11px] font-bold text-brand-dark bg-white border border-brand-malva-light/40 rounded-lg px-3 py-1 flex items-center gap-1.5 shadow-sm">
-              <span className="inline-block w-2 h-2 rounded-full bg-brand-malva animate-pulse" />
-              <span>Actualizado hoy</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {HABIT_AREAS.map((area) => {
+                const currentLog = currentLogsMap.find(log => log.area === area.id) || null;
+                return (
+                  <HabitCard
+                    key={area.id}
+                    area={area}
+                    currentLog={currentLog}
+                    onSave={handleSaveHabit}
+                    onClear={handleClearHabit}
+                  />
+                );
+              })}
             </div>
-          </div>
+          </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {HABIT_AREAS.map((area) => {
-              const currentLog = currentLogsMap.find(log => log.area === area.id) || null;
-              return (
-                <HabitCard
-                  key={area.id}
-                  area={area}
-                  currentLog={currentLog}
-                  onSave={handleSaveHabit}
-                  onClear={handleClearHabit}
-                />
-              );
-            })}
-          </div>
-        </section>
+          {/* Unlocked Badges Lockers Grid Section */}
+          <section className="mb-8" id="badges-section">
+            <BadgesGrid badges={unlockedBadges} />
+          </section>
 
-        {/* Unlocked Badges Lockers Grid Section */}
-        <section className="mb-8" id="badges-section">
-          <BadgesGrid badges={unlockedBadges} />
-        </section>
+          {/* Dynamic Rewards Exchange Marketplace Panel */}
+          <section className="mb-4" id="rewards-section">
+            <RewardsPanel
+              rewards={rewards}
+              availableBadgesCount={availableBadgesCount}
+              onCanjear={handleCanjearReward}
+            />
+          </section>
 
-        {/* Dynamic Rewards Exchange Marketplace Panel */}
-        <section className="mb-4" id="rewards-section">
-          <RewardsPanel
-            rewards={rewards}
-            availableBadgesCount={availableBadgesCount}
-            onCanjear={handleCanjearReward}
-          />
-        </section>
+          <footer className="text-center text-xs text-white/40 mt-12 pt-6 border-t border-white/10">
+            <p>© 2026 Registro de Hábitos Saludables • Hecho para fomentar el bienestar diario.</p>
+            <p className="text-[10px] text-white/30 mt-1">Paleta Gris y Malvas • Almacenamiento local seguro</p>
+          </footer>
 
-        <footer className="text-center text-xs text-brand-dark/50 mt-12 pt-6 border-t border-brand-malva-light/35">
-          <p>© 2026 Registro de Hábitos Saludables • Hecho para fomentar el bienestar diario.</p>
-          <p className="text-[10px] text-brand-dark/40 mt-1">Paleta Gris y Malvas • Almacenamiento local seguro</p>
-        </footer>
+        </div>
+      )}
 
+      {/* Control de Vista Previa para el usuario */}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/90 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-2xl flex-wrap justify-center max-w-[90vw] sm:max-w-md">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-brand-malva-light animate-pulse" />
+          <span className="text-[10px] font-mono font-bold text-white/50 tracking-wider uppercase">VISTA PREVIA:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewOverride('landing')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              shouldShowLanding
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark shadow-md scale-102'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            Página de Inicio
+          </button>
+          <button
+            onClick={() => setViewOverride('app')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              !shouldShowLanding
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark shadow-md scale-102'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            Tablero de la App
+          </button>
+        </div>
+        {viewOverride && (
+          <button
+            onClick={() => setViewOverride(null)}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-all cursor-pointer flex items-center justify-center"
+            title="Volver al flujo real según tu sesión"
+          >
+            <Icon name="RefreshCw" size={13} />
+          </button>
+        )}
       </div>
+
     </div>
   );
 }
