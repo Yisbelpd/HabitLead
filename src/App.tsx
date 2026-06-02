@@ -5,6 +5,7 @@ import { HabitCard } from './components/HabitCard';
 import { BadgesGrid } from './components/BadgesGrid';
 import { RewardsPanel } from './components/RewardsPanel';
 import { Icon } from './components/Icon';
+import { Home } from 'lucide-react';
 
 export default function App() {
   // Today's date from environment settings
@@ -21,7 +22,6 @@ export default function App() {
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
-  const [viewOverride, setViewOverride] = useState<'landing' | 'app' | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -347,7 +347,7 @@ export default function App() {
   };
 
   const currentStreak = getStreakCount();
-  const shouldShowLanding = viewOverride === 'landing' || (!userEmail && viewOverride !== 'app');
+  const shouldShowLanding = !userEmail;
 
   return (
     <div className="min-h-screen bg-meditation-gradient text-white pb-12 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
@@ -569,19 +569,21 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Botón para regresar a la página de inicio (Hacer Logout de forma visual) */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white hover:text-brand-malva-light font-bold text-xs transition-all cursor-pointer shadow-sm"
+                title="Volver a la Página de Inicio (Cerrar Sesión)"
+              >
+                <Home size={13} className="text-brand-malva-light" />
+                <span>Página de Inicio</span>
+              </button>
+
               {/* Real Streaks Indicator */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white font-bold text-xs transition-transform hover:scale-102">
                 <Icon name="Zap" size={14} className="text-brand-malva-light fill-brand-malva-light/20" />
                 <span>Racha: {currentStreak} {currentStreak === 1 ? 'día' : 'días'}</span>
               </div>
-
-              <button
-                onClick={handleLogout}
-                className="p-2 text-white/40 hover:text-white hover:bg-white/15 rounded-xl transition-all cursor-pointer"
-                title="Cerrar sesión"
-              >
-                <Icon name="LogOut" size={16} />
-              </button>
 
               <button
                 onClick={handleResetApp}
@@ -725,45 +727,6 @@ export default function App() {
 
         </div>
       )}
-
-      {/* Control de Vista Previa para el usuario */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/90 backdrop-blur-md border border-white/10 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-2xl flex-wrap justify-center max-w-[90vw] sm:max-w-md">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-brand-malva-light animate-pulse" />
-          <span className="text-[10px] font-mono font-bold text-white/50 tracking-wider uppercase">VISTA PREVIA:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewOverride('landing')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              shouldShowLanding
-                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark shadow-md scale-102'
-                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            Página de Inicio
-          </button>
-          <button
-            onClick={() => setViewOverride('app')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              !shouldShowLanding
-                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark shadow-md scale-102'
-                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            Tablero de la App
-          </button>
-        </div>
-        {viewOverride && (
-          <button
-            onClick={() => setViewOverride(null)}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-all cursor-pointer flex items-center justify-center"
-            title="Volver al flujo real según tu sesión"
-          >
-            <Icon name="RefreshCw" size={13} />
-          </button>
-        )}
-      </div>
 
     </div>
   );
