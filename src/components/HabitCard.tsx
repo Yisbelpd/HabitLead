@@ -132,28 +132,30 @@ export function HabitCard({ area, currentLog, onSave, onClear }: HabitCardProps)
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={customValue}
               onChange={(e) => setCustomValue(e.target.value)}
               placeholder={area.placeholder}
-              className="flex-1 text-xs px-3 py-2 border border-brand-malva-light rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-malva-light focus:border-brand-malva placeholder:text-brand-dark/30 text-brand-dark bg-white transition-all"
+              className="flex-1 text-xs px-3 py-2 border border-brand-malva-light rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-malva-light focus:border-brand-malva placeholder:text-brand-dark/30 text-brand-dark bg-white transition-all w-full"
               required
             />
-            <button
-              type="submit"
-              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all cursor-pointer ${colorClasses.primaryBtn}`}
-            >
-              Grabar
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="text-xs px-2 py-2 rounded-xl bg-brand-malva-light/30 hover:bg-brand-malva-light/60 text-brand-dark transition-all cursor-pointer"
-            >
-              Cancelar
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                type="submit"
+                className={`flex-1 sm:flex-none text-xs px-3 py-2 rounded-xl font-bold transition-all cursor-pointer ${colorClasses.primaryBtn}`}
+              >
+                Grabar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-xl bg-brand-malva-light/30 hover:bg-brand-malva-light/60 text-brand-dark transition-all cursor-pointer text-center"
+              >
+                Cancelar
+              </button>
+            </div>
           </form>
         </div>
       )}

@@ -56,7 +56,7 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
 
   return (
     <div className="bg-white border border-brand-malva-light/40 rounded-2xl p-6" id="rewards-panel">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
             <Icon name="Trophy" className="text-brand-malva" />
@@ -64,7 +64,7 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
           </h2>
           <p className="text-xs text-brand-dark/60">Canjea tus insignias acumuladas por incentivos para tu rutina.</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-brand-malva-light/30 text-brand-dark text-xs font-bold rounded-full border border-brand-malva-light/50">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-brand-malva-light/30 text-brand-dark text-xs font-bold rounded-full border border-brand-malva-light/50 w-fit">
           <Icon name="Crown" size={13} className="animate-pulse text-brand-malva" />
           <span>{availableBadgesCount} acumuladas</span>
         </div>

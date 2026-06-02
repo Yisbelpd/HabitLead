@@ -498,7 +498,7 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 animate-in fade-in duration-300">
           
           {/* Navigation Bar Header */}
-          <header className="py-6 flex items-center justify-between border-b border-white/10 mb-8" id="app-header">
+          <header className="py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 mb-8" id="app-header">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white shadow-sm relative overflow-hidden">
                 <div className="absolute inset-0 bg-brand-malva/10" />
@@ -568,7 +568,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
               {/* Botón para regresar a la página de inicio (Hacer Logout de forma visual) */}
               <button
                 onClick={handleLogout}
@@ -632,7 +632,7 @@ export default function App() {
               {/* Calendar & Streak selector */}
               <div className="md:col-span-4 bg-black/40 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-between">
                 <span className="text-[10px] font-mono text-brand-malva-light/70 mb-3 font-semibold">Historial de la semana</span>
-                <div className="flex gap-1.5 w-full justify-between mb-4">
+                <div className="flex gap-1 sm:gap-1.5 w-full justify-between mb-4">
                   {AVAILABLE_DATES.map((d) => {
                     const loggedOnThatDay = logs.filter(l => l.date === d.date);
                     const isDateSelected = selectedDate === d.date;
@@ -642,15 +642,15 @@ export default function App() {
                       <button
                         key={d.date}
                         onClick={() => setSelectedDate(d.date)}
-                        className={`flex-1 flex flex-col items-center p-2 rounded-xl border transition-all cursor-pointer ${
+                        className={`flex-1 flex flex-col items-center p-1 sm:p-2 rounded-lg sm:rounded-xl border transition-all cursor-pointer ${
                           isDateSelected
-                            ? 'bg-white/15 border-white text-white shadow-inner'
+                            ? 'bg-white/15 border-white text-white shadow-inner scale-102'
                             : 'bg-black/20 border-white/10 text-brand-malva-light/65 hover:text-white'
                         }`}
                       >
-                        <span className="text-[9px] font-bold leading-none block mb-1.5">{d.label.split(' ')[0]}</span>
+                        <span className="text-[8px] sm:text-[9px] font-bold leading-none block mb-1 sm:mb-1.5">{d.label.split(' ')[0]}</span>
                         {/* Small visual logs indicator counter inside circle */}
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                        <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-bold ${
                           score === 5 
                             ? 'bg-gradient-to-tr from-brand-malva-light to-white text-brand-dark animate-pulse'
                             : score > 0 
