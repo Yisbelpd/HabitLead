@@ -256,17 +256,25 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
               </span>
               <button 
                 onClick={handleDisconnectWallet}
-                className="text-[10px] text-red-500 hover:text-red-700 font-bold ml-1.5 transition-colors cursor-pointer"
+                className="text-[10px] text-red-500 hover:text-red-700 font-bold ml-1.5 transition-colors cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-md"
                 title="Desconectar wallet"
               >
                 Desconectar
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-brand-dark/5 hover:bg-brand-dark/10 border border-brand-dark/10 text-brand-dark text-xs rounded-xl px-3 py-1.5 font-bold transition-colors">
-              <Wallet size={13} className="text-brand-dark/60" />
-              <span>Wallet no conectada</span>
-            </div>
+            <button
+              onClick={() => {
+                setRewardIdToRedeem(null);
+                setIsWalletModalOpen(true);
+                setWalletFlowStep('select');
+                setErrorWeb3(null);
+              }}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm shadow-indigo-100 cursor-pointer"
+            >
+              <Wallet size={13} />
+              <span>Conectar Wallet (Solana)</span>
+            </button>
           )}
         </div>
       </div>
@@ -783,7 +791,11 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
 
                   <div>
                     <h3 className="font-extrabold text-sm text-white">¡Firma Criptográfica Verificada!</h3>
-                    <p className="text-xs text-slate-400 mt-1">Se ha validado la posesión de la cuenta en Solana. La recompensa ha sido desbloqueada con éxito.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {rewardIdToRedeem 
+                        ? 'Se ha validado la posesión de la cuenta en Solana. La recompensa ha sido desbloqueada con éxito.' 
+                        : 'Se ha validado la posesión de tu billetera de Solana. Ahora puedes canjear cualquiera de tus insignias de bienestar.'}
+                    </p>
                   </div>
 
                   <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl inline-block w-full">
