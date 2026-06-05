@@ -610,9 +610,9 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center p-2 group-hover:bg-indigo-500/20 transition-colors">
                           <img 
-                            src="https://phantom.app/img/brand/Ghost_Purple.svg" 
-                            alt="Phantom Ghost Logo" 
-                            className="w-8 h-8 rounded-md"
+                            src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                            alt="Phantom Logo" 
+                            className="w-8 h-8 object-contain"
                             referrerPolicy="no-referrer"
                           />
                         </div>
@@ -634,14 +634,10 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center p-2 group-hover:bg-amber-500/20 transition-colors">
                           <img 
-                            src="https://solflare.com/assets/logo.svg" 
+                            src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
                             alt="Solflare Logo" 
-                            className="w-8 h-8 rounded-md"
+                            className="w-8 h-8 object-contain"
                             referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              // Fallback if website is blocked
-                              (e.target as HTMLImageElement).src = "https://solana.com/src/img/branding/solanaLogoMark.svg";
-                            }}
                           />
                         </div>
                         <div>
@@ -676,13 +672,12 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                     <div className="relative">
                       <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
                         <img 
-                          src={selectedWalletType === 'phantom' ? "https://phantom.app/img/brand/Ghost_Purple.svg" : "https://solflare.com/assets/logo.svg"}
+                          src={selectedWalletType === 'phantom' 
+                            ? "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                            : "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg"}
                           alt="Selected Wallet"
-                          className="w-8 h-8"
+                          className="w-8 h-8 object-contain"
                           referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://solana.com/src/img/branding/solanaLogoMark.svg";
-                          }}
                         />
                       </div>
                       <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center text-[10px] font-bold text-white">✓</span>
