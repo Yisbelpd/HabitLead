@@ -773,7 +773,7 @@ export default function App() {
 
       {/* Barra de menú inferior responsive con alta legibilidad y contraste */}
       {!shouldShowLanding && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92vw] max-w-sm bg-zinc-950/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-center justify-between shadow-2xl transition-all duration-350">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92vw] max-w-sm bg-brand-mid-dark/95 backdrop-blur-xl border border-brand-malva/30 rounded-2xl p-1.5 flex items-center justify-between shadow-2xl transition-all duration-350">
           <button
             onClick={() => {
               scrollToSection('app-header');
