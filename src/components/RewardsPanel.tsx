@@ -30,6 +30,10 @@ import {
   Grid
 } from 'lucide-react';
 
+const PHANTOM_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiB2aWV3Qm94PSIwIDAgMTA4IDEwOCIgZmlsbD0ibm9uZSI+CjxyZWN0IHdpZHRoPSIxMDgiIGhlaWdodD0iMTA4IiByeD0iMjYiIGZpbGw9IiNBQjlGRjIiLz4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik00Ni41MjY3IDY5LjkyMjlDNDIuMDA1NCA3Ni44NTA5IDM0LjQyOTIgODUuNjE4MiAyNC4zNDggODUuNjE4MkMxOS41ODI0IDg1LjYxODIgMTUgODMuNjU2MyAxNSA3NS4xMzQyQzE1IDUzLjQzMDUgNDQuNjMyNiAxOS44MzI3IDcyLjEyNjggMTkuODMyN0M4Ny43NjggMTkuODMyNyA5NCAzMC42ODQ2IDk0IDQzLjAwNzlDOTQgNTguODI1OCA4My43MzU1IDc2LjkxMjIgNzMuNTMyMSA3Ni45MTIyQzcwLjI5MzkgNzYuUIYyMiA2OC43MDUzIDc1LjEzNDIgNjguNzA1MyA3Mi4zMTRDNjguNzA1MyA3MS41NzgzIDY4LjgyNzUgNzAuNzgxMiA2OS4wNzE5IDY5LjkyMjlDNjUuNTg5MyA3NS44Njk5IDU4Ljg2ODUgODEuMzg3OCA1Mi41NzU0IDgxLjM4NzhDNDcuOTkzIDgxLjM4NzggNDUuNjcxMyA3OC41MDYzIDQ1LjY3MTMgNzQuNDU5OEM0NS42NzEzIDcyLjk4ODQgNDUuOTc2OCA3MS40NTU2IDQ2LjUyNjcgNjkuOTIyOVpNODMuYjc2MSA0Mi41Nzk0QzgzLjY3NjEgNDYuMTcwNCA4MS41NTc1IDg3Ljk2NTggNzkuMTg3NSA0Ny45NjU4Qzc2Ljc4MTYgNDcuOTY1OCA3NC42OTg5IDY2LjE3MDQgNzQuNjk4OSA0Mi41Nzk0Qzc0LjY5ODkgMzguOTg4NSA3Ni43ODE2IDM3LjE5MzEgNzkuMTg3NSAzNy4xOTMxQzgxLjU1NzUgMzcuMTkzMSA4My42NzYxIDg4Ljk4ODUgODMuNjc2MSA0Mi41Nzk0Wk03MC4yMTAzIDQyLjU3OTVDNzAuMjEwMyA0Ni4xNzA0IDY4LjA5MTYgNDcuOTY1OSA2NS43MjE2IDQ3Ljk2NThDNjMuMzE1NyA0Ny45NjU4IDYxLjIzMyA0Ni4xNzA0IDYxLjIzMyA0Mi41Nzk1QzE0LjIzMyAzOC45ODg1IDYzLjMxNTcgMzcuMTkzMSA2NS43MjE2IDM3LjE5MzFDNjguMDkxNiAzNy4xOTMxIDcwLjIxMDMgMzguOTg4NSA3MC4yMTAzIDQyLjU3OTVaIiBmaWxsPSIjRkZGREY4Ii8+Cjwvc3ZnPg==';
+
+const SOLFLARE_ICON = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIGlkPSJTIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MCA1MCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiMwMjA1MGE7c3Ryb2tlOiNmZmVmNDY7c3Ryb2tlLW1pdGVybGltaXQ6MTA7c3Ryb2tlLXdpZHRoOi41cHg7fS5jbHMtMntmaWxsOiNmZmVmNDY7fTwvc3R5bGU+PC9kZWZzPjxyZWN0IGNsYXNzPSJjbHMtMiIgeD0iMCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiByeD0iMTIiIHJ5PSIxMiIvPjxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTI0LjIzLDI2LjQybDIuNDYtMi4zOCw0LjU5LDEuNWMzLjAxLDEsNC41MSwyLjg0LDQuNTEsNS40MywwLDEuOTYtLjc1LDMuMjYtMi4yNSw0LjkzbC0uNDYuNS4xNy0xLjE3Yy42Ny00LjI2LS41OC02LjA5LTQuNzItNy40M2wtNC4zLTEuMzhoMFpNMTguMDUsMTEuODVsMTIuNTIsNC4xNy0yLjcxLDIuNTktNi41MS0yLjE3Yy0yLjI1LS43NS0zLjAxLTEuOTYtMy4zLTQuNTF2LS4wOGgwWk0xNy4zLDMzLjA2bDIuODQtMi43MSw1LjM0LDEuNzVjMi44LjkyLDMuNzYsMi4xMywzLjQ2LDUuMThsLTExLjY1LTQuMjJoMFpNMTMuNzEsMjAuOTVjMC0uNzkuNDItMS41NCwxLjEzLTIuMTcuNzUsMS4wOSwyLjA1LDIuMDUsNC4wOSwyLjcxbDQuNDIsMS40Ni0yLjQ2LDIuMzgtNC4zNC0xLjYyYy0yLS42Ny0yLjg0LTEuNjctMi44NC0yLjk2TTI2LjgyLDQyLjg3YzkuMTgtNi4wOSwxNC4xMS0xMC4yMywxNC4xMS0xNS4zMiwwLTMuMzgtMi01LjI2LTYuNDMtNi43MmwtMy4zNC0xLjEzLDkuMTQtOC43Ny0xLjg0LTEuOTYtMi43MSwyLjM4LTEyLjgxLTQuMjJjLTMuOTcsMS4yOS04Ljk3LDUuMDktOC45Nyw4Ljg5LDAsLjQyLjA0LjgzLjE3LDEuMjktMy4zLDEuODgtNC42MywzLjYzLTQuNjMsNS44LDAsMi4wNSwxLjA5LDQuMDksNC41NSw1LjIybDIuNzUuOTItOS41Miw5LjE0LDEuODQsMS45NiwyLjk2LTIuNzEsMTQuNzMsNS4yMmgwWiIvPjwvc3ZnPg==';
+
 interface RewardsPanelProps {
   rewards: Reward[];
   availableBadgesCount: number;
@@ -287,7 +291,7 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
                 className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm hover:scale-[1.02] cursor-pointer"
               >
                 <img 
-                  src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                  src={PHANTOM_ICON} 
                   alt="Phantom" 
                   className="w-3.5 h-3.5 object-contain"
                   referrerPolicy="no-referrer"
@@ -312,7 +316,7 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
                 className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm hover:scale-[1.02] cursor-pointer"
               >
                 <img 
-                  src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
+                  src={SOLFLARE_ICON} 
                   alt="Solflare" 
                   className="w-3.5 h-3.5 object-contain"
                   referrerPolicy="no-referrer"
@@ -652,7 +656,7 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-black text-white text-xs font-mono">P</div>
                           ) : (
                             <img 
-                              src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                              src={PHANTOM_ICON} 
                               alt="Phantom Logo" 
                               className="w-8 h-8 object-contain transform-gpu"
                               width={32}
@@ -684,7 +688,7 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                             <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center font-black text-white text-xs font-mono">S</div>
                           ) : (
                             <img 
-                              src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
+                              src={SOLFLARE_ICON} 
                               alt="Solflare Logo" 
                               className="w-8 h-8 object-contain transform-gpu"
                               width={32}
@@ -734,9 +738,7 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                           </div>
                         ) : (
                           <img 
-                            src={selectedWalletType === 'phantom' 
-                              ? "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
-                              : "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg"}
+                            src={selectedWalletType === 'phantom' ? PHANTOM_ICON : SOLFLARE_ICON} 
                             alt="Selected Wallet"
                             className="w-8 h-8 object-contain transform-gpu"
                             width={32}
