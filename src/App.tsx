@@ -5,7 +5,7 @@ import { HabitCard } from './components/HabitCard';
 import { BadgesGrid } from './components/BadgesGrid';
 import { RewardsPanel } from './components/RewardsPanel';
 import { Icon } from './components/Icon';
-import { Home } from 'lucide-react';
+import { Home, ListTodo, Award, Gift } from 'lucide-react';
 
 export default function App() {
   // Today's date from environment settings
@@ -349,8 +349,51 @@ export default function App() {
   const currentStreak = getStreakCount();
   const shouldShowLanding = !userEmail;
 
+  // Bottom menu active section navigation based on scroll position
+  const [activeSection, setActiveSection] = useState<'inicio' | 'habitos' | 'insignias' | 'recompensas'>('inicio');
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      // Smooth scrolling to the element
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  useEffect(() => {
+    if (shouldShowLanding) return;
+
+    const sections = [
+      { id: 'app-header', name: 'inicio' },
+      { id: 'habits-dashboard', name: 'habitos' },
+      { id: 'badges-section', name: 'insignias' },
+      { id: 'rewards-section', name: 'recompensas' },
+    ];
+
+    const handleScroll = () => {
+      let current = 'inicio';
+      // Use window.scrollY with offset to highlight navigation slightly before reaching section
+      const scrollPosition = window.scrollY + 220;
+
+      for (const section of sections) {
+        const el = document.getElementById(section.id);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPosition >= top && scrollPosition < top + height) {
+            current = section.name;
+          }
+        }
+      }
+      setActiveSection(current as any);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [shouldShowLanding]);
+
   return (
-    <div className="min-h-screen bg-meditation-gradient text-white pb-12 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
+    <div className="min-h-screen bg-meditation-gradient text-white pb-32 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
       
       {/* Visual Floating Notifications Container */}
       {showNotification && (
@@ -725,6 +768,71 @@ export default function App() {
             <p className="text-[10px] text-white/30 mt-1">Paleta Gris y Malvas • Almacenamiento local seguro</p>
           </footer>
 
+        </div>
+      )}
+
+      {/* Barra de menú inferior responsive con alta legibilidad y contraste */}
+      {!shouldShowLanding && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92vw] max-w-sm bg-zinc-950/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-center justify-between shadow-2xl transition-all duration-350">
+          <button
+            onClick={() => {
+              scrollToSection('app-header');
+              setActiveSection('inicio');
+            }}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 px-1 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all duration-250 cursor-pointer ${
+              activeSection === 'inicio'
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-zinc-950 shadow-md scale-102 font-extrabold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Home size={15} />
+            <span>Inicio</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              scrollToSection('habits-dashboard');
+              setActiveSection('habitos');
+            }}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 px-1 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all duration-250 cursor-pointer ${
+              activeSection === 'habitos'
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-zinc-950 shadow-md scale-102 font-extrabold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ListTodo size={15} />
+            <span>Hábitos</span>
+          </button>
+
+          <button
+            onClick={() => {
+              scrollToSection('badges-section');
+              setActiveSection('insignias');
+            }}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 px-1 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all duration-250 cursor-pointer ${
+              activeSection === 'insignias'
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-zinc-950 shadow-md scale-102 font-extrabold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Award size={15} />
+            <span>Insignias</span>
+          </button>
+
+          <button
+            onClick={() => {
+              scrollToSection('rewards-section');
+              setActiveSection('recompensas');
+            }}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 px-1 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all duration-250 cursor-pointer ${
+              activeSection === 'recompensas'
+                ? 'bg-gradient-to-tr from-brand-malva-light to-white text-zinc-950 shadow-md scale-102 font-extrabold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Gift size={15} />
+            <span>Recompensas</span>
+          </button>
         </div>
       )}
 
