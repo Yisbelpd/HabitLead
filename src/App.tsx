@@ -162,26 +162,22 @@ export default function App() {
 
   // Handler for adding/updating helper log
   const handleSaveHabit = (areaId: HabitArea, value: string) => {
-    const existingLogIndex = logs.findIndex(log => log.date === selectedDate && log.area === areaId);
-    
-    let updatedLogs = [...logs];
-    if (existingLogIndex >= 0) {
-      updatedLogs[existingLogIndex] = {
-        ...updatedLogs[existingLogIndex],
-        value,
-        timestamp: Date.now()
-      };
-    } else {
-      const newLog: HabitLog = {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        area: areaId,
-        date: selectedDate,
-        completed: true,
-        value,
-        timestamp: Date.now()
-      };
-      updatedLogs.push(newLog);
-    }
+    const cleanValue = value.trim();
+    if (!cleanValue) return;
+
+    // Check if we already have this exact habit logged for this area on this date
+    const alreadyRegistered = logs.some(log => log.date === selectedDate && log.area === areaId && log.value === cleanValue);
+    if (alreadyRegistered) return;
+
+    const newLog: HabitLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      area: areaId,
+      date: selectedDate,
+      completed: true,
+      value: cleanValue,
+      timestamp: Date.now()
+    };
+    const updatedLogs = [...logs, newLog];
 
     saveLogs(updatedLogs);
 
@@ -330,7 +326,7 @@ export default function App() {
   };
 
   // Stats calculation
-  const completedTodayCount = currentLogsMap.length;
+  const completedTodayCount = new Set(currentLogsMap.map(log => log.area)).size;
   const progressPercentage = Math.round((completedTodayCount / 5) * 100);
 
   // Consecutive active record streak calculation
@@ -769,12 +765,12 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {HABIT_AREAS.map((area) => {
-                const currentLog = currentLogsMap.find(log => log.area === area.id) || null;
+                const logsForArea = currentLogsMap.filter(log => log.area === area.id);
                 return (
                   <HabitCard
                     key={area.id}
                     area={area}
-                    currentLog={currentLog}
+                    currentLogs={logsForArea}
                     onSave={handleSaveHabit}
                     onClear={handleClearHabit}
                   />
