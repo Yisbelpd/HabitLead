@@ -8,8 +8,26 @@ import { Icon } from './components/Icon';
 import { Home, ListTodo, Award, Gift } from 'lucide-react';
 
 export default function App() {
-  // Today's date from environment settings
-  const TODAY_STR = '2026-05-30';
+  // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
+  const getTodayStr = (): string => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getYesterdayStr = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const TODAY_STR = getTodayStr();
+  const YESTERDAY_STR = getYesterdayStr();
 
   // State
   const [logs, setLogs] = useState<HabitLog[]>([]);
@@ -69,14 +87,28 @@ export default function App() {
     localStorage.setItem('salud_user_email', newEmail);
   };
 
-  // Helper lists of dates for selection (past 5 days + today)
-  const AVAILABLE_DATES = [
-    { label: 'Lun 26', date: '2026-05-26' },
-    { label: 'Mar 27', date: '2026-05-27' },
-    { label: 'Mié 28', date: '2026-05-28' },
-    { label: 'Jue 29', date: '2026-05-29' },
-    { label: 'Vie 30 (Hoy)', date: '2026-05-30' }
-  ];
+  // Helper lists of dates for selection - dynamically computed based on today's actual date
+  const getDynamicDates = () => {
+    const list = [];
+    const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const dayLabel = weekdays[d.getDay()];
+      const dayNum = d.getDate();
+      const label = i === 0 ? `${dayLabel} ${dayNum} (Hoy)` : `${dayLabel} ${dayNum}`;
+      
+      list.push({ label, date: dateStr });
+    }
+    return list;
+  };
+
+  const AVAILABLE_DATES = getDynamicDates();
 
   // Helper list to map area logs of the selected date
   const currentLogsMap = logs.filter(log => log.date === selectedDate);
@@ -315,7 +347,7 @@ export default function App() {
     // If there is no activity today, verify if there was yesterday to preserve streak
     const hasToday = logs.some(l => l.date === TODAY_STR);
     if (!hasToday) {
-      const yesterday = '2026-05-29';
+      const yesterday = YESTERDAY_STR;
       const hasYesterday = logs.some(l => l.date === yesterday);
       if (hasYesterday) {
         checkDateString = yesterday;
