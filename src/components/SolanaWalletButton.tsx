@@ -105,8 +105,11 @@ export function SolanaWalletButton() {
                 Solana Devnet
               </span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              {activeWallet?.adapter.name || 'Wallet'}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold bg-zinc-950/40 text-zinc-200 border border-white/5 shadow-sm">
+              {activeWallet?.adapter.icon && (
+                <img src={activeWallet.adapter.icon} alt={activeWallet.adapter.name} className="w-3.5 h-3.5 object-contain" referrerPolicy="no-referrer" />
+              )}
+              <span>{activeWallet?.adapter.name || 'Wallet'}</span>
             </div>
           </div>
           
@@ -150,8 +153,12 @@ export function SolanaWalletButton() {
                   activeWallet?.adapter.name === 'Phantom' && connecting ? 'border-purple-500 bg-purple-500/5' : 'hover:border-purple-500/40'
                 }`}
               >
-                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center p-1.5 text-purple-400">
-                  <Icon name="Zap" size={18} />
+                <div className="w-8 h-8 rounded-xl bg-purple-600/10 flex items-center justify-center p-1.5 shrink-0">
+                  {phantom.adapter.icon ? (
+                    <img src={phantom.adapter.icon} alt="Phantom" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Icon name="Zap" size={18} className="text-purple-400" />
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="font-extrabold text-white text-[11px]">Phantom</p>
@@ -184,8 +191,12 @@ export function SolanaWalletButton() {
                   activeWallet?.adapter.name === 'Solflare' && connecting ? 'border-orange-500 bg-orange-500/5' : 'hover:border-orange-500/40'
                 }`}
               >
-                <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center p-1.5 text-orange-400">
-                  <Icon name="Hexagon" size={18} />
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center p-1.5 shrink-0">
+                  {solflare.adapter.icon ? (
+                    <img src={solflare.adapter.icon} alt="Solflare" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Icon name="Hexagon" size={18} className="text-orange-400" />
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="font-extrabold text-white text-[11px]">Solflare</p>
