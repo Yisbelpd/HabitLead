@@ -1,0 +1,240 @@
+import React, { useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletReadyState } from '@solana/wallet-adapter-base';
+import { Icon } from './Icon';
+
+export function SolanaWalletButton() {
+  const {
+    wallets,
+    wallet: activeWallet,
+    publicKey,
+    connected,
+    connecting,
+    select,
+    connect,
+    disconnect,
+  } = useWallet();
+
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Truncate public key to format 7x8A...kP91
+  const formatAddress = (pubkeyString: string) => {
+    if (pubkeyString.length < 10) return pubkeyString;
+    return `${pubkeyString.slice(0, 5)}...${pubkeyString.slice(-4)}`;
+  };
+
+  // Find Phantom and Solflare from adapters list
+  const phantom = wallets.find((w) => w.adapter.name === 'Phantom');
+  const solflare = wallets.find((w) => w.adapter.name === 'Solflare');
+
+  const handleWalletSelect = async (selectedWallet: any) => {
+    try {
+      setErrorMsg(null);
+      setDropdownOpen(false);
+      
+      // If the selected wallet is already selected but not connected
+      if (activeWallet?.adapter.name === selectedWallet.adapter.name) {
+        if (!connected) {
+          await connect();
+        }
+      } else {
+        await select(selectedWallet.adapter.name);
+        // Note: some adapters connect auto-selectively, if not we will connect on active change
+      }
+    } catch (err: any) {
+      console.error("Wallet selection error:", err);
+      setErrorMsg(err.message || 'Error al conectar la wallet');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      setErrorMsg(null);
+      await disconnect();
+    } catch (err: any) {
+      console.error("Wallet disconnect error:", err);
+    }
+  };
+
+  // Status computation
+  let statusText = 'Desconectado';
+  let statusColor = 'bg-zinc-400';
+
+  if (connecting) {
+    statusText = 'Conectando...';
+    statusColor = 'bg-amber-500 animate-pulse';
+  } else if (connected && publicKey) {
+    statusText = 'Conectado';
+    statusColor = 'bg-emerald-500';
+  }
+
+  // Brand icons / colors mapping for customized experience
+  const getWalletInfo = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'phantom':
+        return {
+          bg: 'hover:bg-purple-600/10 hover:border-purple-500/50',
+          text: 'text-purple-400',
+          badge: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        };
+      case 'solflare':
+        return {
+          bg: 'hover:bg-orange-500/10 hover:border-orange-500/50',
+          text: 'text-orange-400',
+          badge: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+        };
+      default:
+        return {
+          bg: 'hover:bg-zinc-800',
+          text: 'text-zinc-300',
+          badge: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+        };
+    }
+  };
+
+  return (
+    <div className="relative inline-block text-left w-full" id="solana-wallet-selector">
+      {/* Connected State display */}
+      {connected && publicKey ? (
+        <div className="flex flex-col gap-2 p-4 bg-zinc-900/50 border border-brand-malva/30 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${statusColor}`} />
+              <span className="text-xs font-semibold text-zinc-300">
+                Solana Devnet
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              {activeWallet?.adapter.name || 'Wallet'}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between gap-3 mt-1">
+            <div className="flex items-center gap-2 overflow-hidden bg-black/30 px-3 py-2 rounded-xl border border-white/5 flex-1 select-all cursor-pointer" title="Copiar Address">
+              <Icon name="Shield" size={13} className="text-brand-malva-light shrink-0" />
+              <span className="text-xs font-mono font-bold text-white truncate">
+                {formatAddress(publicKey.toString())}
+              </span>
+            </div>
+            
+            <button
+              onClick={handleDisconnect}
+              className="px-3 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-red-500/20 shadow-sm"
+              title="Desconectar Wallet"
+            >
+              <Icon name="LogOut" size={12} />
+              <span>Salir</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Disconnected / Connection Selection Form
+        <div className="space-y-3">
+          {errorMsg && (
+            <div className="text-[11px] text-red-400 font-bold p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
+              <Icon name="AlertCircle" size={14} className="shrink-0 text-red-400" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Trigger selector button */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Phantom Option */}
+            {phantom ? (
+              <button
+                type="button"
+                onClick={() => handleWalletSelect(phantom)}
+                disabled={connecting}
+                className={`py-3 px-4 bg-zinc-950/40 border border-white/10 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
+                  activeWallet?.adapter.name === 'Phantom' && connecting ? 'border-purple-500 bg-purple-500/5' : 'hover:border-purple-500/40'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center p-1.5 text-purple-400">
+                  <Icon name="Zap" size={18} />
+                </div>
+                <div className="text-center">
+                  <p className="font-extrabold text-white text-[11px]">Phantom</p>
+                  <p className="text-[9px] text-zinc-400 mt-0.5 font-semibold">
+                    {phantom.readyState === WalletReadyState.NotDetected ? 'No instalado' : 'Conectar'}
+                  </p>
+                </div>
+                {phantom.readyState === WalletReadyState.NotDetected && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-zinc-500" title="Extensión no detectada" />
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.open('https://phantom.app/', '_blank')}
+                className="py-3 px-4 bg-zinc-950/20 border border-white/5 opacity-60 hover:opacity-100 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
+              >
+                <Icon name="Download" size={16} className="text-purple-400" />
+                <span className="text-[10px] text-zinc-400 font-bold">Instalar Phantom</span>
+              </button>
+            )}
+
+            {/* Solflare Option */}
+            {solflare ? (
+              <button
+                type="button"
+                onClick={() => handleWalletSelect(solflare)}
+                disabled={connecting}
+                className={`py-3 px-4 bg-zinc-950/40 border border-white/10 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
+                  activeWallet?.adapter.name === 'Solflare' && connecting ? 'border-orange-500 bg-orange-500/5' : 'hover:border-orange-500/40'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center p-1.5 text-orange-400">
+                  <Icon name="Hexagon" size={18} />
+                </div>
+                <div className="text-center">
+                  <p className="font-extrabold text-white text-[11px]">Solflare</p>
+                  <p className="text-[9px] text-zinc-400 mt-0.5 font-semibold">
+                    {solflare.readyState === WalletReadyState.NotDetected ? 'No instalado' : 'Conectar'}
+                  </p>
+                </div>
+                {solflare.readyState === WalletReadyState.NotDetected && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-zinc-500" title="Extensión no detectada" />
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.open('https://solflare.com/', '_blank')}
+                className="py-3 px-4 bg-zinc-950/20 border border-white/5 opacity-60 hover:opacity-100 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
+              >
+                <Icon name="Download" size={16} className="text-orange-400" />
+                <span className="text-[10px] text-zinc-400 font-bold">Instalar Solflare</span>
+              </button>
+            )}
+          </div>
+
+          {/* Connection action info when active wallet selected but not yet connected */}
+          {activeWallet && !connected && (
+            <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between gap-2 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span className="text-[11px] font-bold text-zinc-300">
+                  {connecting ? `Estableciendo enlace con ${activeWallet.adapter.name}...` : `Listo para enlazar con ${activeWallet.adapter.name}`}
+                </span>
+              </div>
+              
+              {!connecting && (
+                <button
+                  type="button"
+                  onClick={() => connect().catch((err: any) => setErrorMsg(err.message || 'Firma rechazada'))}
+                  className="px-3 py-1 bg-brand-malva hover:bg-brand-dark text-white rounded-lg text-[10px] font-extrabold shadow transition-all cursor-pointer"
+                >
+                  Confirmar Enlace
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

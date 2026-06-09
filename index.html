@@ -1,6 +1,30 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Redefine window.fetch to support writing (getters/setters) to prevent errors
+      // in sandbox iframe environments where window.fetch is a read-only getter
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          if (originalFetch) {
+            var fetchValue = originalFetch;
+            Object.defineProperty(window, 'fetch', {
+              get: function() {
+                return fetchValue;
+              },
+              set: function(val) {
+                fetchValue = val;
+              },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          console.warn("Pre-emptive window.fetch patch warning:", e);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>HabitLead - Bienestar y Liderazgo</title>

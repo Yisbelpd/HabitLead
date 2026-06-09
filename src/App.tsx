@@ -8,8 +8,12 @@ import { Icon } from './components/Icon';
 import { Home, ListTodo, Award, Gift } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import logroBienestarImg from './assets/images/logro_bienestar_1780981006929.png';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { SolanaWalletButton } from './components/SolanaWalletButton';
 
 export default function App() {
+  const { publicKey, connected } = useWallet();
+
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
   const getTodayStr = (): string => {
     const d = new Date();
@@ -44,45 +48,86 @@ export default function App() {
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount & when wallet switches
   useEffect(() => {
-    const savedLogs = localStorage.getItem('salud_habit_logs');
-    const savedRewards = localStorage.getItem('salud_rewards');
-    const savedName = localStorage.getItem('salud_username');
-    const savedEmail = localStorage.getItem('salud_user_email');
+    if (connected && publicKey) {
+      const walletAddress = publicKey.toString();
+      const truncated = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
+      setUserEmail(`${walletAddress.slice(0, 8)}...${walletAddress.slice(-4)}@solana.wallet`);
+      
+      const savedName = localStorage.getItem(`salud_username_${walletAddress}`);
+      const fallbackName = `Miembro ${truncated}`;
+      setUsername(savedName || fallbackName);
+      setNameInput(savedName || fallbackName);
 
-    if (savedLogs) setLogs(JSON.parse(savedLogs));
-    if (savedRewards) {
-      setRewards(JSON.parse(savedRewards));
+      const savedLogs = localStorage.getItem(`salud_habit_logs_${walletAddress}`);
+      if (savedLogs) {
+        setLogs(JSON.parse(savedLogs));
+      } else {
+        setLogs([]);
+      }
+
+      const savedRewards = localStorage.getItem(`salud_rewards_${walletAddress}`);
+      if (savedRewards) {
+        setRewards(JSON.parse(savedRewards));
+      } else {
+        setRewards(INITIAL_REWARDS);
+      }
     } else {
-      setRewards(INITIAL_REWARDS);
+      const savedEmail = localStorage.getItem('salud_user_email');
+      if (savedEmail) {
+        setUserEmail(savedEmail);
+        setEmailInput(savedEmail);
+
+        const savedName = localStorage.getItem('salud_username');
+        if (savedName) {
+          setUsername(savedName);
+          setNameInput(savedName);
+        } else {
+          setUsername('Invitado');
+          setNameInput('Invitado');
+        }
+
+        const savedLogs = localStorage.getItem('salud_habit_logs');
+        if (savedLogs) {
+          setLogs(JSON.parse(savedLogs));
+        } else {
+          setLogs([]);
+        }
+
+        const savedRewards = localStorage.getItem('salud_rewards');
+        if (savedRewards) {
+          setRewards(JSON.parse(savedRewards));
+        } else {
+          setRewards(INITIAL_REWARDS);
+        }
+      } else {
+        setUserEmail('');
+        setUsername('Invitado');
+        setNameInput('Invitado');
+        setLogs([]);
+        setRewards(INITIAL_REWARDS);
+      }
     }
-    if (savedEmail) {
-      setUserEmail(savedEmail);
-      setEmailInput(savedEmail);
-    }
-    if (savedName) {
-      setUsername(savedName);
-      setNameInput(savedName);
-    } else {
-      setNameInput(username);
-    }
-  }, []);
+  }, [connected, publicKey]);
 
   // Sync state to localStorage
   const saveLogs = (newLogs: HabitLog[]) => {
     setLogs(newLogs);
-    localStorage.setItem('salud_habit_logs', JSON.stringify(newLogs));
+    const key = connected && publicKey ? `salud_habit_logs_${publicKey.toString()}` : 'salud_habit_logs';
+    localStorage.setItem(key, JSON.stringify(newLogs));
   };
 
   const saveRewards = (newRewards: Reward[]) => {
     setRewards(newRewards);
-    localStorage.setItem('salud_rewards', JSON.stringify(newRewards));
+    const key = connected && publicKey ? `salud_rewards_${publicKey.toString()}` : 'salud_rewards';
+    localStorage.setItem(key, JSON.stringify(newRewards));
   };
 
   const saveUsername = (newName: string) => {
     setUsername(newName);
-    localStorage.setItem('salud_username', newName);
+    const key = connected && publicKey ? `salud_username_${publicKey.toString()}` : 'salud_username';
+    localStorage.setItem(key, newName);
   };
 
   const saveUserEmail = (newEmail: string) => {
@@ -587,6 +632,19 @@ export default function App() {
               </button>
             </form>
 
+            {/* Separador elegante para Wallet Adapter */}
+            <div className="relative my-5 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200"></div>
+              </div>
+              <span className="relative px-3.5 text-[9px] font-extrabold text-zinc-400 bg-white tracking-widest uppercase">
+                O Conecta tu Wallet
+              </span>
+            </div>
+
+            {/* Solana Wallet Adapter Selector */}
+            <SolanaWalletButton />
+
             <div className="mt-6 pt-5 border-t border-brand-malva-light/60 text-center">
               <div className="flex justify-center gap-4 text-brand-dark/50">
                 <div className="flex items-center gap-1 text-[10px] font-bold">
@@ -788,6 +846,22 @@ export default function App() {
               </div>
             </div>
           </section>
+
+          {/* Tarjeta de Gestión de Wallet Solana */}
+          <div className="mb-8 p-5 bg-gradient-to-r from-zinc-950/60 to-black/40 border border-white/10 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse shrink-0" />
+                <h3 className="font-extrabold text-xs text-purple-300 uppercase tracking-widest leading-none">HabitLead Solana Integration</h3>
+              </div>
+              <p className="text-[11px] text-white/70 leading-relaxed font-semibold max-w-md">
+                Tus datos de bienestar se asocian de forma descentralizada con tu wallet. ¡Phantom y Solflare soportados!
+              </p>
+            </div>
+            <div className="w-full sm:w-80">
+              <SolanaWalletButton />
+            </div>
+          </div>
 
           {/* Master Active Habits Cards Dashboard (5 areas list) */}
           <section className="space-y-6 mb-8" id="habits-dashboard">
