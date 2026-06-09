@@ -66,6 +66,12 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
   const [showTechnicalDocs, setShowTechnicalDocs] = useState(false);
   const [docsTab, setDocsTab] = useState<'flujo' | 'sdks' | 'codigo' | 'seguridad'>('flujo');
 
+  // Track image load failures to guarantee graceful fallback rendering on mobile devices with poor connection
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
+  const handleImageError = (key: string) => {
+    setImageLoadErrors(prev => ({ ...prev, [key]: true }));
+  };
+
   // Simple breathing timer for interactive meditation content
   useEffect(() => {
     let timer: any = null;
@@ -609,12 +615,20 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center p-2 group-hover:bg-indigo-500/20 transition-colors">
-                          <img 
-                            src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
-                            alt="Phantom Logo" 
-                            className="w-8 h-8 object-contain"
-                            referrerPolicy="no-referrer"
-                          />
+                          {imageLoadErrors['phantom'] ? (
+                            <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-black text-white text-xs font-mono">P</div>
+                          ) : (
+                            <img 
+                              src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                              alt="Phantom Logo" 
+                              className="w-8 h-8 object-contain transform-gpu"
+                              width={32}
+                              height={32}
+                              decoding="async"
+                              referrerPolicy="no-referrer"
+                              onError={() => handleImageError('phantom')}
+                            />
+                          )}
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-white">Phantom Wallet</h4>
@@ -633,12 +647,20 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center p-2 group-hover:bg-amber-500/20 transition-colors">
-                          <img 
-                            src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
-                            alt="Solflare Logo" 
-                            className="w-8 h-8 object-contain"
-                            referrerPolicy="no-referrer"
-                          />
+                          {imageLoadErrors['solflare'] ? (
+                            <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center font-black text-white text-xs font-mono">S</div>
+                          ) : (
+                            <img 
+                              src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
+                              alt="Solflare Logo" 
+                              className="w-8 h-8 object-contain transform-gpu"
+                              width={32}
+                              height={32}
+                              decoding="async"
+                              referrerPolicy="no-referrer"
+                              onError={() => handleImageError('solflare')}
+                            />
+                          )}
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-white">Solflare Wallet</h4>
@@ -671,14 +693,26 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                   <div className="flex justify-center mb-2">
                     <div className="relative">
                       <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
-                        <img 
-                          src={selectedWalletType === 'phantom' 
-                            ? "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
-                            : "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg"}
-                          alt="Selected Wallet"
-                          className="w-8 h-8 object-contain"
-                          referrerPolicy="no-referrer"
-                        />
+                        {imageLoadErrors[selectedWalletType!] ? (
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-xs font-mono ${
+                            selectedWalletType === 'phantom' ? 'bg-violet-600' : 'bg-orange-500'
+                          }`}>
+                            {selectedWalletType === 'phantom' ? 'P' : 'S'}
+                          </div>
+                        ) : (
+                          <img 
+                            src={selectedWalletType === 'phantom' 
+                              ? "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                              : "https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg"}
+                            alt="Selected Wallet"
+                            className="w-8 h-8 object-contain transform-gpu"
+                            width={32}
+                            height={32}
+                            decoding="async"
+                            referrerPolicy="no-referrer"
+                            onError={() => handleImageError(selectedWalletType!)}
+                          />
+                        )}
                       </div>
                       <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center text-[10px] font-bold text-white">✓</span>
                     </div>

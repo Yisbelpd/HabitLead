@@ -393,7 +393,9 @@ export default function App() {
   }, [shouldShowLanding]);
 
   return (
-    <div className="min-h-screen bg-meditation-gradient text-white pb-32 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
+    <div className="min-h-screen text-white pb-32 font-sans selection:bg-brand-malva-light/35 selection:text-brand-dark">
+      {/* High-performance GPU Accelerated Fixed Background Layer to prevent viewport repainting lags on mobile */}
+      <div className="fixed inset-0 bg-meditation-gradient pointer-events-none z-[-1] transform-gpu" />
       
       {/* Visual Floating Notifications Container */}
       {showNotification && (

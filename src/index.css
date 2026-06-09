@@ -11,6 +11,11 @@
 @layer base {
   .bg-meditation-gradient {
     background: linear-gradient(135deg, #2D2D30 0%, #4A2E4B 50%, #7A5C7A 100%);
-    background-attachment: fixed;
+  }
+  
+  /* Hardware rendering optimization for smooth animations and vectors on low-end and high-end mobile devices */
+  .transform-gpu {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
   }
 }
