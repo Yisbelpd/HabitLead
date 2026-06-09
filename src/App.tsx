@@ -4,12 +4,19 @@ import { HABIT_AREAS, INITIAL_BADGES, INITIAL_REWARDS } from './data';
 import { HabitCard } from './components/HabitCard';
 import { BadgesGrid } from './components/BadgesGrid';
 import { RewardsPanel } from './components/RewardsPanel';
+import { WalletBadges } from './components/WalletBadges';
 import { Icon } from './components/Icon';
 import { Home, ListTodo, Award, Gift } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import logroBienestarImg from './assets/images/logro_bienestar_1780981006929.png';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { SolanaWalletButton } from './components/SolanaWalletButton';
+import { 
+  syncStateToWallet, 
+  loadWalletState, 
+  ensureWalletProfile, 
+  LocalBadge 
+} from './lib/walletPersistence';
 
 export default function App() {
   const { publicKey, connected } = useWallet();
@@ -47,6 +54,7 @@ export default function App() {
   const [emailError, setEmailError] = useState('');
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [walletBadges, setWalletBadges] = useState<LocalBadge[]>([]);
 
   // Load from localStorage on mount & when wallet switches
   useEffect(() => {
@@ -55,17 +63,18 @@ export default function App() {
       const truncated = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
       setUserEmail(`${walletAddress.slice(0, 8)}...${walletAddress.slice(-4)}@solana.wallet`);
       
+      // Load or Create profile structured data
+      ensureWalletProfile(walletAddress);
+
       const savedName = localStorage.getItem(`salud_username_${walletAddress}`);
       const fallbackName = `Miembro ${truncated}`;
       setUsername(savedName || fallbackName);
       setNameInput(savedName || fallbackName);
 
-      const savedLogs = localStorage.getItem(`salud_habit_logs_${walletAddress}`);
-      if (savedLogs) {
-        setLogs(JSON.parse(savedLogs));
-      } else {
-        setLogs([]);
-      }
+      // Load wallet-specific state via structured loader
+      const { appLogs, badges } = loadWalletState(walletAddress, HABIT_AREAS);
+      setLogs(appLogs);
+      setWalletBadges(badges);
 
       const savedRewards = localStorage.getItem(`salud_rewards_${walletAddress}`);
       if (savedRewards) {
@@ -74,6 +83,7 @@ export default function App() {
         setRewards(INITIAL_REWARDS);
       }
     } else {
+      setWalletBadges([]);
       const savedEmail = localStorage.getItem('salud_user_email');
       if (savedEmail) {
         setUserEmail(savedEmail);
@@ -114,8 +124,17 @@ export default function App() {
   // Sync state to localStorage
   const saveLogs = (newLogs: HabitLog[]) => {
     setLogs(newLogs);
-    const key = connected && publicKey ? `salud_habit_logs_${publicKey.toString()}` : 'salud_habit_logs';
-    localStorage.setItem(key, JSON.stringify(newLogs));
+    if (connected && publicKey) {
+      const walletAddress = publicKey.toString();
+      // Use helper to save structured logs & compute badges
+      const { badges } = syncStateToWallet(walletAddress, newLogs, HABIT_AREAS);
+      setWalletBadges(badges);
+      
+      // Re-save backwards-compatible array format
+      localStorage.setItem(`salud_habit_logs_${walletAddress}`, JSON.stringify(newLogs));
+    } else {
+      localStorage.setItem('salud_habit_logs', JSON.stringify(newLogs));
+    }
   };
 
   const saveRewards = (newRewards: Reward[]) => {
@@ -128,6 +147,19 @@ export default function App() {
     setUsername(newName);
     const key = connected && publicKey ? `salud_username_${publicKey.toString()}` : 'salud_username';
     localStorage.setItem(key, newName);
+
+    if (connected && publicKey) {
+      const walletAddress = publicKey.toString();
+      const profileKey = `habitLead_profile_${walletAddress}`;
+      const saved = localStorage.getItem(profileKey);
+      if (saved) {
+        try {
+          const profile = JSON.parse(saved);
+          profile.username = newName;
+          localStorage.setItem(profileKey, JSON.stringify(profile));
+        } catch(e){}
+      }
+    }
   };
 
   const saveUserEmail = (newEmail: string) => {
@@ -347,16 +379,33 @@ export default function App() {
   // Complete reset to restart
   const handleResetApp = () => {
     if (confirm('¿Estás seguro de reiniciar todos tus datos de hábitos y recompensas?')) {
-      localStorage.removeItem('salud_habit_logs');
-      localStorage.removeItem('salud_rewards');
-      localStorage.removeItem('salud_username');
-      localStorage.removeItem('salud_user_email');
-      setLogs([]);
-      setRewards(INITIAL_REWARDS);
-      setUsername('Invitado');
-      setNameInput('Invitado');
-      setUserEmail('');
-      setEmailInput('');
+      if (connected && publicKey) {
+        const walletAddress = publicKey.toString();
+        localStorage.removeItem(`salud_habit_logs_${walletAddress}`);
+        localStorage.removeItem(`salud_rewards_${walletAddress}`);
+        localStorage.removeItem(`salud_username_${walletAddress}`);
+        localStorage.removeItem(`habitLead_profile_${walletAddress}`);
+        localStorage.removeItem(`habitLead_habits_${walletAddress}`);
+        localStorage.removeItem(`habitLead_logs_${walletAddress}`);
+        localStorage.removeItem(`habitLead_badges_${walletAddress}`);
+        setLogs([]);
+        setWalletBadges([]);
+        setRewards(INITIAL_REWARDS);
+        const truncated = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
+        setUsername(`Miembro ${truncated}`);
+        setNameInput(`Miembro ${truncated}`);
+      } else {
+        localStorage.removeItem('salud_habit_logs');
+        localStorage.removeItem('salud_rewards');
+        localStorage.removeItem('salud_username');
+        localStorage.removeItem('salud_user_email');
+        setLogs([]);
+        setRewards(INITIAL_REWARDS);
+        setUsername('Invitado');
+        setNameInput('Invitado');
+        setUserEmail('');
+        setEmailInput('');
+      }
       setEmailError('');
       setSelectedDate(TODAY_STR);
       setShowNotification({
@@ -895,6 +944,14 @@ export default function App() {
 
           {/* Unlocked Badges Lockers Grid Section */}
           <section className="mb-8" id="badges-section">
+            {connected && publicKey && (
+              <WalletBadges
+                walletAddress={publicKey.toString()}
+                totalCheckins={logs.length}
+                currentStreak={currentStreak}
+                badges={walletBadges}
+              />
+            )}
             <BadgesGrid badges={unlockedBadges} />
           </section>
 
