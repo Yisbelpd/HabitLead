@@ -950,6 +950,11 @@ export default function App() {
                 totalCheckins={logs.length}
                 currentStreak={currentStreak}
                 badges={walletBadges}
+                onBadgeVerified={() => {
+                  console.log("Incentive badge verified, reloading state...");
+                  const { badges } = loadWalletState(publicKey.toString(), HABIT_AREAS);
+                  setWalletBadges(badges);
+                }}
               />
             )}
             <BadgesGrid badges={unlockedBadges} />
@@ -961,6 +966,7 @@ export default function App() {
               rewards={rewards}
               availableBadgesCount={availableBadgesCount}
               onCanjear={handleCanjearReward}
+              walletBadges={walletBadges}
             />
           </section>
 

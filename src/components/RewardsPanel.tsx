@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Reward } from '../types';
+import { LocalBadge } from '../lib/walletPersistence';
+import { requestRewardAccess } from '../lib/rewardService';
 import { Icon } from './Icon';
 import { 
   Wallet, 
@@ -38,14 +41,16 @@ interface RewardsPanelProps {
   rewards: Reward[];
   availableBadgesCount: number;
   onCanjear: (rewardId: string) => void;
+  walletBadges?: LocalBadge[];
 }
 
-export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: RewardsPanelProps) {
+export function RewardsPanel({ rewards, availableBadgesCount, onCanjear, walletBadges }: RewardsPanelProps) {
   const [activeReward, setActiveReward] = useState<Reward | null>(null);
   const [breathingState, setBreathingState] = useState<'idle' | 'inhale' | 'exhale'>('idle');
   const [breathingSeconds, setBreathingSeconds] = useState(0);
 
   // --- Web3 State Management ---
+  const { publicKey, connected: isAdapterConnected } = useWallet();
   const [connectedWallet, setConnectedWallet] = useState<string | null>(() => {
     return localStorage.getItem('solana_wallet_address');
   });
@@ -55,6 +60,37 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
   const [isSignedAndVerified, setIsSignedAndVerified] = useState<boolean>(() => {
     return localStorage.getItem('solana_wallet_verified') === 'true';
   });
+
+  const activeWalletAddress = isAdapterConnected && publicKey ? publicKey.toString() : connectedWallet;
+
+  // Claiming with simulated backend API verification
+  const [claimingRewardId, setClaimingRewardId] = useState<string | null>(null);
+  const [claimStatus, setClaimStatus] = useState<string | null>(null);
+  const [claimSuccessDetails, setClaimSuccessDetails] = useState<{ rewardId: string; token: string; url: string } | null>(null);
+
+  const handleClaimWithBackend = async (reward: Reward, txSignature: string) => {
+    setClaimingRewardId(reward.id);
+    setClaimStatus("Estableciendo conexión segura con la API del backend...");
+    setClaimSuccessDetails(null);
+    try {
+      const walletAddr = activeWalletAddress || "Desconocida";
+      const response = await requestRewardAccess(txSignature, walletAddr, reward.id);
+      
+      setClaimSuccessDetails({
+        rewardId: reward.id,
+        token: response.temporalToken,
+        url: response.signedUrl
+      });
+      setClaimStatus(null);
+      // Mark unlocked
+      onCanjear(reward.id);
+    } catch (e: any) {
+      console.error(e);
+      setClaimStatus(`Error del backend: ${e?.message || "Imposible verificar ahora"}`);
+    } finally {
+      setClaimingRewardId(null);
+    }
+  };
 
   // Modal flow states
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
@@ -533,7 +569,9 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
         {rewards.map((reward) => {
           const typeIcon = reward.type === 'podcast' ? 'Podcast' : reward.type === 'pdf_tips' ? 'FileText' : 'Sparkles';
-          const canAfford = availableBadgesCount >= reward.cost;
+          const badge = walletBadges?.find((b) => b.id === reward.requiredBadgeId);
+          const isBadgeUnlocked = badge ? badge.status === 'unlocked' : false;
+          const hasOnChainProof = badge && typeof badge.txSignature === 'string' && badge.txSignature.length > 5;
 
           return (
             <div
@@ -558,7 +596,67 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                 <p className="text-xs text-brand-dark/70 mt-1 line-clamp-2">{reward.description}</p>
               </div>
 
+              {/* Requirement / Locking status box */}
+              {!reward.unlocked && (
+                <div className="mt-3 space-y-1.5">
+                  {!isAdapterConnected ? (
+                    <div className="bg-amber-50 border border-amber-200/50 p-2 rounded-lg flex items-start gap-1.5">
+                      <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                      <span className="text-[9.5px] text-amber-700 leading-tight">
+                        Conecta tu wallet Solana arriba para ver tus insignias y desbloquear esta recompensa.
+                      </span>
+                    </div>
+                  ) : !isBadgeUnlocked ? (
+                    <div className="bg-red-50 border border-red-200/50 p-2.5 rounded-lg flex items-start gap-1.5">
+                      <Lock size={13} className="text-red-500 shrink-0 mt-0.5" />
+                      <div className="text-[10px] text-red-800 leading-tight">
+                        <span className="font-extrabold block">Insignia Bloqueada</span>
+                        Necesitas desbloquear la insignia <strong>{badge ? badge.name : reward.requiredBadgeId}</strong> completando sus hábitos requeridos.
+                      </div>
+                    </div>
+                  ) : !hasOnChainProof ? (
+                    <div className="bg-amber-50 border border-amber-200/60 p-2.5 rounded-lg flex items-start gap-1.5">
+                      <AlertCircle size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[10px] text-amber-900 leading-tight">
+                        <span className="font-extrabold block">Verificación Pendiente</span>
+                        Haz click en <strong>"Verificar en Solana"</strong> en la insignia superior para registrar tu progreso en Devnet.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50 border border-emerald-200/50 p-2.5 rounded-lg flex items-start gap-1.5">
+                      <Check size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="text-[10px] text-emerald-900 leading-tight">
+                        <span className="font-extrabold block text-emerald-800">¡On-Chain Verificado!</span>
+                        Prueba registrada correctamente en Solana Devnet.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
+              {/* Loading & Success Backend state feedback */}
+              {claimingRewardId === reward.id && claimStatus && (
+                <div className="mt-2.5 p-2 bg-purple-50 rounded-lg text-[9.5px] text-purple-700 font-bold flex items-center gap-2 border border-purple-100">
+                  <span className="animate-spin w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full" />
+                  <span>{claimStatus}</span>
+                </div>
+              )}
+
+              {claimSuccessDetails?.rewardId === reward.id && (
+                <div className="mt-2 text-[9.5px] bg-slate-900 text-emerald-400 p-2.5 rounded-lg border border-slate-800 font-mono space-y-1 relative z-10">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <Check size={10} className="text-emerald-400" />
+                    <span>¡Backend Verificado con éxito!</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-800 pt-1 mt-1">
+                    <span className="text-slate-500">Token temporal:</span>
+                    <span className="text-white select-all">{claimSuccessDetails.token}</span>
+                  </div>
+                  <div className="text-slate-500 text-[8px] leading-relaxed">
+                    *El backend autorizó el acceso verificando la txSignature de Solana Devnet.
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 pt-3 border-t border-brand-malva-light/30 flex items-center justify-between">
                 {reward.unlocked ? (
@@ -573,19 +671,19 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                   <>
                     <span className="text-xs font-bold text-brand-dark/80 flex items-center gap-1 bg-brand-malva-light/20 px-2 py-1 rounded-lg">
                       <Crown size={12} className="text-brand-malva" />
-                      {reward.cost} insignias
+                      Requiere Insignia
                     </span>
                     <button
-                      onClick={() => handleInitiateRedeem(reward.id)}
-                      disabled={!canAfford}
+                      onClick={() => handleClaimWithBackend(reward, badge?.txSignature || '')}
+                      disabled={!hasOnChainProof || claimingRewardId !== null}
                       className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                        canAfford
+                        hasOnChainProof
                           ? 'bg-indigo-600 hover:bg-brand-dark text-white shadow-md shadow-indigo-200'
                           : 'bg-slate-200/50 text-slate-400 border border-slate-100 cursor-not-allowed'
                       }`}
                     >
                       <Lock size={12} />
-                      Canjear (Solana)
+                      {claimingRewardId === reward.id ? 'Reclamando...' : 'Reclamar recompensa'}
                     </button>
                   </>
                 )}

@@ -30,6 +30,10 @@ export interface LocalBadge {
   progress: number; // 0 - 100
   unlocked_at: string | null;
   wallet_address: string;
+  txSignature?: string;
+  memo?: string;
+  verified_at?: string;
+  cluster?: string;
 }
 
 /**
@@ -231,7 +235,22 @@ export function calculateWalletBadges(
 
   const getLocalDateStr = () => new Date().toISOString().split('T')[0];
 
-  return [
+  // Load saved proofs
+  const proofsKey = `habitLead_badge_proofs_${walletAddress}`;
+  const savedProofsRaw = localStorage.getItem(proofsKey);
+  const proofsMap = new Map<string, { txSignature: string; memo: string; verified_at: string; cluster: string }>();
+  if (savedProofsRaw) {
+    try {
+      const parsedProofs = JSON.parse(savedProofsRaw);
+      Object.keys(parsedProofs).forEach((badgeId) => {
+        proofsMap.set(badgeId, parsedProofs[badgeId]);
+      });
+    } catch (e) {
+      // Ignored
+    }
+  }
+
+  const baseBadges: LocalBadge[] = [
     {
       id: 'badge_streak_7',
       name: '7-Day Streak',
@@ -260,6 +279,20 @@ export function calculateWalletBadges(
       wallet_address: walletAddress
     }
   ];
+
+  return baseBadges.map((badge) => {
+    const proof = proofsMap.get(badge.id);
+    if (proof) {
+      return {
+        ...badge,
+        txSignature: proof.txSignature,
+        memo: proof.memo,
+        verified_at: proof.verified_at,
+        cluster: proof.cluster || 'devnet'
+      };
+    }
+    return badge;
+  });
 }
 
 /**
@@ -315,4 +348,26 @@ function calculateStreak(logs: HabitLog[]): number {
   }
 
   return streak;
+}
+
+/**
+ * Saves a badge validation proof to localStorage
+ */
+export function saveBadgeProof(
+  walletAddress: string,
+  badgeId: string,
+  proof: { txSignature: string; memo: string; verified_at: string; cluster: string }
+): void {
+  const key = `habitLead_badge_proofs_${walletAddress}`;
+  const saved = localStorage.getItem(key);
+  let proofsMap: Record<string, any> = {};
+  if (saved) {
+    try {
+      proofsMap = JSON.parse(saved);
+    } catch (e) {
+      // Ignored
+    }
+  }
+  proofsMap[badgeId] = proof;
+  localStorage.setItem(key, JSON.stringify(proofsMap));
 }

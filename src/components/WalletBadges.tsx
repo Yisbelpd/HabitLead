@@ -1,5 +1,7 @@
-import React from 'react';
-import { LocalBadge } from '../lib/walletPersistence';
+import React, { useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { LocalBadge, saveBadgeProof } from '../lib/walletPersistence';
 import { Icon } from './Icon';
 
 interface WalletBadgesProps {
@@ -7,10 +9,86 @@ interface WalletBadgesProps {
   totalCheckins: number;
   currentStreak: number;
   badges: LocalBadge[];
+  onBadgeVerified?: () => void;
 }
 
-export function WalletBadges({ walletAddress, totalCheckins, currentStreak, badges }: WalletBadgesProps) {
+export function WalletBadges({ walletAddress, totalCheckins, currentStreak, badges, onBadgeVerified }: WalletBadgesProps) {
   const truncatedAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-6)}`;
+  const { sendTransaction } = useWallet();
+
+  const [verifyingBadgeId, setVerifyingBadgeId] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  const handleVerifyOnSolana = async (badgeId: string, badgeName: string) => {
+    setVerifyingBadgeId(badgeId);
+    setStatusText(`Verificando "${badgeName}" en blockchain Solana Devnet...`);
+    setErrorText(null);
+
+    try {
+      if (!walletAddress) {
+        throw new Error("No hay wallet conectada.");
+      }
+
+      // We connect to public Devnet RPC
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const publicKeyObj = new PublicKey(walletAddress);
+
+      // Construct a random number nonce
+      const nonce = Math.floor(Math.random() * 1000000);
+      const isoDate = new Date().toISOString();
+      const memoText = `HABITLEAD_PROOF:v1|badge=${badgeId}|wallet=${walletAddress}|date=${isoDate}|nonce=${nonce}`;
+
+      const transaction = new Transaction();
+      
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKeyObj;
+
+      // SPL Memo Program v2
+      const MEMO_PROG_ID = new PublicKey('MemoSzerg2eevX2yzceasgXjfEn9XuhgEAtg61Cdp7');
+      const data = Buffer.from(memoText);
+
+      const instruction = new TransactionInstruction({
+        keys: [
+          { pubkey: publicKeyObj, isSigner: true, isWritable: false }
+        ],
+        programId: MEMO_PROG_ID,
+        data: data
+      });
+
+      transaction.add(instruction);
+
+      setStatusText("Firma requerida: Aprueba la transacción en tu wallet...");
+      const signature = await sendTransaction(transaction, connection);
+
+      setStatusText("Confirmando transacción en Devnet...");
+      await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight
+      }, 'confirmed');
+
+      // Save on-chain proof in local storage
+      saveBadgeProof(walletAddress, badgeId, {
+        txSignature: signature,
+        memo: memoText,
+        verified_at: isoDate,
+        cluster: 'devnet'
+      });
+
+      setStatusText(`¡Insignia "${badgeName}" verificada con éxito en Solana!`);
+      
+      if (onBadgeVerified) {
+        onBadgeVerified();
+      }
+    } catch (error: any) {
+      console.error("Transacción fallida en Solana Devnet:", error);
+      setErrorText(error?.message || "Fallo al enviar la transacción.");
+    } finally {
+      setVerifyingBadgeId(null);
+    }
+  };
 
   // Find progress icon or render custom
   const getBadgeIcon = (id: string) => {
@@ -84,6 +162,24 @@ export function WalletBadges({ walletAddress, totalCheckins, currentStreak, badg
         </div>
       </div>
 
+      {/* Solana feedback messages */}
+      {(statusText || errorText) && (
+        <div className="mb-6 relative z-10 space-y-2">
+          {statusText && (
+            <div className="bg-purple-950/40 border border-purple-500/20 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs text-purple-200">
+              <div className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-ping shrink-0" />
+              <span>{statusText}</span>
+            </div>
+          )}
+          {errorText && (
+            <div className="bg-red-950/40 border border-red-500/20 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs text-red-300">
+              <Icon name="AlertTriangle" size={16} className="text-red-400 shrink-0" />
+              <span>Error: {errorText}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Row of the three custom bootcamp badges */}
       <div className="space-y-4 mb-6 relative z-10">
         <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1">
@@ -155,6 +251,53 @@ export function WalletBadges({ walletAddress, totalCheckins, currentStreak, badg
                   <div className="mt-3 pt-2 border-t border-white/5 text-[9px] text-[#a78bfa] font-semibold flex items-center gap-1.5">
                     <Icon name="Calendar" size={10} />
                     <span>Conseguida: {badge.unlocked_at}</span>
+                  </div>
+                )}
+
+                {/* Proof Solana status & Verify Button */}
+                {isUnlocked && (
+                  <div className="mt-2.5 pt-2.5 border-t border-white/5 space-y-2">
+                    {badge.txSignature ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1 text-[9.5px] text-emerald-400 font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Verificado On-Chain</span>
+                        </div>
+                        <p className="text-[9px] text-zinc-400 truncate max-w-full font-mono" title={badge.txSignature}>
+                          Tx: {badge.txSignature.slice(0, 12)}...{badge.txSignature.slice(-8)}
+                        </p>
+                        <a
+                          href={`https://explorer.solana.com/tx/${badge.txSignature}?cluster=devnet`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[9px] font-bold text-purple-400 hover:text-purple-300 transition-colors"
+                        >
+                          <Icon name="ExternalLink" size={9} />
+                          <span>Solana Explorer</span>
+                        </a>
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          type="button"
+                          disabled={verifyingBadgeId !== null}
+                          onClick={() => handleVerifyOnSolana(badge.id, badge.name)}
+                          className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 text-white font-bold text-[10px] py-1.5 px-3 rounded-xl transition-all shadow-sm cursor-pointer"
+                        >
+                          {verifyingBadgeId === badge.id ? (
+                            <>
+                              <span className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                              <span>Verificando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icon name="Share2" size={10} />
+                              <span>Verificar en Solana</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -107,6 +107,7 @@ export const INITIAL_REWARDS: Reward[] = [
     description: 'Audios inspiracionales sobre hacks científicos para estructurar tus primeras horas del día.',
     cost: 3,
     unlocked: false,
+    requiredBadgeId: 'badge_streak_7',
     content: {
       title: 'Hacks de Mañana con Ciencia Auténtica',
       duration: '18:40 min',
@@ -121,6 +122,7 @@ export const INITIAL_REWARDS: Reward[] = [
     description: 'Documento completo con 10 tips prácticos para vencer el insomnio sin recurrir a suplementos.',
     cost: 5,
     unlocked: false,
+    requiredBadgeId: 'badge_checkins_30',
     content: {
       title: '10 Claves para el Descanso Regenerativo',
       text: '1. Mantén un horario fijo para levantarte, incluso los fines de semana.\n2. Disminuye la intensidad de las luces de tu hogar a partir de las 8:00 PM.\n3. Evita bebidas estimulantes como el café después de las 2:00 PM.\n4. La temperatura ideal para dormir es de 18-20°C.\n5. Haz respiraciones 4-7-8 al acostarte.\n6. No trabajes desde la cama.\n7. Utiliza bombillas de luz cálida.\n8. Haz de tu dormitorio un santuario analógico.\n9. Los baños tibios antes de dormir inducen el sueño de forma natural.\n10. Si no te duermes en 20 minutos, levántate y haz algo tranquilo.'
@@ -133,6 +135,7 @@ export const INITIAL_REWARDS: Reward[] = [
     description: 'Una pista de audio relajante diseñada para resetear tu sistema nervioso en momentos de estrés.',
     cost: 4,
     unlocked: false,
+    requiredBadgeId: 'badge_full_balance',
     content: {
       title: 'Sesión de Respiración Diafragmática Coherente',
       duration: '5:00 min',

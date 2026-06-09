@@ -26,6 +26,7 @@ export interface Reward {
   description: string;
   cost: number; // Cost in badges
   unlocked: boolean;
+  requiredBadgeId?: string;
   content: {
     title: string;
     text?: string;
