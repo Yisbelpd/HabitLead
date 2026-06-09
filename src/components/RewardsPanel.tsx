@@ -269,19 +269,57 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                setRewardIdToRedeem(null);
-                setIsWalletModalOpen(true);
-                setWalletFlowStep('select');
-                setErrorWeb3(null);
-              }}
-              className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs rounded-xl px-3 py-1.5 font-extrabold transition-all shadow-md hover:shadow-indigo-500/20 cursor-pointer border border-[#8b5cf6]/50"
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-purple-300 animate-pulse" />
-              <Wallet size={13} />
-              <span>Conectar Wallet (HabitLead Solana Integration)</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRewardIdToRedeem(null);
+                  setErrorWeb3(null);
+                  setSelectedWalletType('phantom');
+                  setIsDetectingWallet(true);
+                  setIsWalletModalOpen(true);
+                  setWalletFlowStep('select');
+                  setTimeout(() => {
+                    setIsDetectingWallet(false);
+                    setWalletFlowStep('connect');
+                  }, 1200);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm hover:scale-[1.02] cursor-pointer"
+              >
+                <img 
+                  src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/phantom/assets/phantom.svg" 
+                  alt="Phantom" 
+                  className="w-3.5 h-3.5 object-contain"
+                  referrerPolicy="no-referrer"
+                />
+                <span>Phantom</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRewardIdToRedeem(null);
+                  setErrorWeb3(null);
+                  setSelectedWalletType('solflare');
+                  setIsDetectingWallet(true);
+                  setIsWalletModalOpen(true);
+                  setWalletFlowStep('select');
+                  setTimeout(() => {
+                    setIsDetectingWallet(false);
+                    setWalletFlowStep('connect');
+                  }, 1200);
+                }}
+                className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm hover:scale-[1.02] cursor-pointer"
+              >
+                <img 
+                  src="https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/solflare/assets/solflare.svg" 
+                  alt="Solflare" 
+                  className="w-3.5 h-3.5 object-contain"
+                  referrerPolicy="no-referrer"
+                />
+                <span>Solflare</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
