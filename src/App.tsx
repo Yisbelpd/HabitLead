@@ -7,8 +7,7 @@ import { RewardsPanel } from './components/RewardsPanel';
 import { Icon } from './components/Icon';
 import { Home, ListTodo, Award, Gift } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import logroBienestarImg from './assets/images/logro_bienestar_1780981006929.png';
 
 export default function App() {
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
@@ -32,10 +31,6 @@ export default function App() {
   const TODAY_STR = getTodayStr();
   const YESTERDAY_STR = getYesterdayStr();
 
-  // --- Solana Wallet Hooks (Task 1 & 7) ---
-  const { publicKey, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
-
   // State
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -49,68 +44,50 @@ export default function App() {
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
 
-  // Load from localStorage and react to connected Solana Wallet state (Task 8: User Association)
+  // Load from localStorage on mount
   useEffect(() => {
-    const keySuffix = publicKey ? `_${publicKey.toBase58()}` : '';
-    const savedLogs = localStorage.getItem(`salud_habit_logs${keySuffix}`);
-    const savedRewards = localStorage.getItem(`salud_rewards${keySuffix}`);
-    const savedName = localStorage.getItem(`salud_username${keySuffix}`);
-    const savedEmail = localStorage.getItem(`salud_user_email${keySuffix}`);
+    const savedLogs = localStorage.getItem('salud_habit_logs');
+    const savedRewards = localStorage.getItem('salud_rewards');
+    const savedName = localStorage.getItem('salud_username');
+    const savedEmail = localStorage.getItem('salud_user_email');
 
-    if (savedLogs) {
-      setLogs(JSON.parse(savedLogs));
-    } else {
-      setLogs([]);
-    }
-
+    if (savedLogs) setLogs(JSON.parse(savedLogs));
     if (savedRewards) {
       setRewards(JSON.parse(savedRewards));
     } else {
       setRewards(INITIAL_REWARDS);
     }
-
     if (savedEmail) {
       setUserEmail(savedEmail);
       setEmailInput(savedEmail);
-    } else {
-      const defaultEmail = publicKey ? `${publicKey.toBase58().slice(0, 6)}...${publicKey.toBase58().slice(-4)}@solana.com` : '';
-      setUserEmail(defaultEmail);
-      setEmailInput(defaultEmail);
     }
-
     if (savedName) {
       setUsername(savedName);
       setNameInput(savedName);
     } else {
-      const defaultName = publicKey ? `User ${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : 'Invitado';
-      setUsername(defaultName);
-      setNameInput(defaultName);
+      setNameInput(username);
     }
-  }, [publicKey]);
+  }, []);
 
-  // Sync state to localStorage with custom key suffixes depending on wallet connection (Task 8)
+  // Sync state to localStorage
   const saveLogs = (newLogs: HabitLog[]) => {
     setLogs(newLogs);
-    const keySuffix = publicKey ? `_${publicKey.toBase58()}` : '';
-    localStorage.setItem(`salud_habit_logs${keySuffix}`, JSON.stringify(newLogs));
+    localStorage.setItem('salud_habit_logs', JSON.stringify(newLogs));
   };
 
   const saveRewards = (newRewards: Reward[]) => {
     setRewards(newRewards);
-    const keySuffix = publicKey ? `_${publicKey.toBase58()}` : '';
-    localStorage.setItem(`salud_rewards${keySuffix}`, JSON.stringify(newRewards));
+    localStorage.setItem('salud_rewards', JSON.stringify(newRewards));
   };
 
   const saveUsername = (newName: string) => {
     setUsername(newName);
-    const keySuffix = publicKey ? `_${publicKey.toBase58()}` : '';
-    localStorage.setItem(`salud_username${keySuffix}`, newName);
+    localStorage.setItem('salud_username', newName);
   };
 
   const saveUserEmail = (newEmail: string) => {
     setUserEmail(newEmail);
-    const keySuffix = publicKey ? `_${publicKey.toBase58()}` : '';
-    localStorage.setItem(`salud_user_email${keySuffix}`, newEmail);
+    localStorage.setItem('salud_user_email', newEmail);
   };
 
   // Helper lists of dates for selection - dynamically computed based on today's actual date
@@ -705,40 +682,6 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
-              {/* Solana Wallet Connection (Task 5, 6 & 7) */}
-              {publicKey ? (
-                <div 
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-teal-500/20 to-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-all hover:scale-102 shadow-md relative"
-                  title={`Conectado: ${publicKey.toBase58()}`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="font-mono">{publicKey.toBase58().slice(0, 6)}...{publicKey.toBase58().slice(-4)}</span>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        await disconnect();
-                        localStorage.removeItem('solana_wallet_verified');
-                        localStorage.removeItem('solana_wallet_address');
-                      } catch (err) {
-                        console.error('Error al desconectar la wallet:', err);
-                      }
-                    }}
-                    className="ml-1 text-[9px] uppercase tracking-wider text-white/50 hover:text-red-300 font-black cursor-pointer bg-white/5 hover:bg-white/10 px-1.5 py-0.5 rounded transition-all"
-                  >
-                    Salir
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setVisible(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition-all hover:scale-102 cursor-pointer shadow-md shadow-indigo-600/15 border border-indigo-500/50"
-                  title="Conectar billetera de Solana (Phantom / Solflare)"
-                >
-                  <Icon name="Wallet" size={13} className="text-white shrink-0" />
-                  <span>Conectar Wallet</span>
-                </button>
-              )}
-
               {/* Botón para regresar a la página de inicio (Hacer Logout de forma visual) */}
               <button
                 onClick={handleLogout}
@@ -973,7 +916,7 @@ export default function App() {
             {/* The achievement image with golden gradient borders */}
             <div className="relative z-10 w-36 h-36 rounded-2xl overflow-hidden border-2 border-brand-malva-light/40 bg-zinc-900/40 p-2 flex items-center justify-center shadow-inner shadow-black/80">
               <img
-                src="/src/assets/images/logro_bienestar_1780981006929.png"
+                src={logroBienestarImg}
                 alt="Logro Bienestar"
                 className="w-full h-full object-contain transform-gpu scale-102"
                 referrerPolicy="no-referrer"

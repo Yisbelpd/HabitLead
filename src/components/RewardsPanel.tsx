@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Reward } from '../types';
 import { Icon } from './Icon';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { 
   Wallet, 
   ShieldAlert, 
@@ -42,23 +41,13 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
   const [breathingState, setBreathingState] = useState<'idle' | 'inhale' | 'exhale'>('idle');
   const [breathingSeconds, setBreathingSeconds] = useState(0);
 
-  // --- Real Web3 Solana Wallet Adapter Hook integrations ---
-  const { connection } = useConnection();
-  const { 
-    select, 
-    connect, 
-    disconnect, 
-    publicKey, 
-    wallet, 
-    connected, 
-    connecting, 
-    signMessage,
-    wallets
-  } = useWallet();
-
-  const connectedWallet = publicKey ? publicKey.toBase58() : null;
-  const walletType = wallet ? (wallet.adapter.name.toLowerCase().includes('phantom') ? 'phantom' : 'solflare') : null;
-
+  // --- Web3 State Management ---
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(() => {
+    return localStorage.getItem('solana_wallet_address');
+  });
+  const [walletType, setWalletType] = useState<'phantom' | 'solflare' | null>(() => {
+    return localStorage.getItem('solana_wallet_type') as any;
+  });
   const [isSignedAndVerified, setIsSignedAndVerified] = useState<boolean>(() => {
     return localStorage.getItem('solana_wallet_verified') === 'true';
   });
@@ -72,21 +61,6 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [isSigningMessage, setIsSigningMessage] = useState(false);
   const [errorWeb3, setErrorWeb3] = useState<string | null>(null);
-
-  // Track state synchronization on wallet changes
-  useEffect(() => {
-    if (!publicKey) {
-      setIsSignedAndVerified(false);
-    } else {
-      const address = publicKey.toBase58();
-      const verified = localStorage.getItem(`solana_wallet_verified_${address}`) === 'true';
-      setIsSignedAndVerified(verified);
-      
-      // Save for backwards compatibility
-      localStorage.setItem('solana_wallet_address', address);
-      localStorage.setItem('solana_wallet_type', wallet?.adapter.name.toLowerCase().includes('phantom') ? 'phantom' : 'solflare');
-    }
-  }, [publicKey, wallet]);
 
   // Technical guide state
   const [showTechnicalDocs, setShowTechnicalDocs] = useState(false);
@@ -139,11 +113,11 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
     setBreathingState('idle');
   };
 
-  // --- Handlers for Real Wallet Adapter Flow ---
+  // --- Handlers for Wallet Flow ---
   
   const handleInitiateRedeem = (rewardId: string) => {
     // Check if wallet is already connected and verified
-    if (connected && isSignedAndVerified) {
+    if (connectedWallet && isSignedAndVerified) {
       // Wallet connected and signed, complete redemption
       onCanjear(rewardId);
     } else {
@@ -151,7 +125,7 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
       setRewardIdToRedeem(rewardId);
       setIsWalletModalOpen(true);
       setErrorWeb3(null);
-      if (connected) {
+      if (connectedWallet) {
         // If already connected, skip selection and go to sign
         setSelectedWalletType(walletType);
         setWalletFlowStep('sign');
@@ -161,60 +135,43 @@ export function RewardsPanel({ rewards, availableBadgesCount, onCanjear }: Rewar
     }
   };
 
-  const handleSelectWallet = async (type: 'phantom' | 'solflare') => {
+  const handleSelectWallet = (type: 'phantom' | 'solflare') => {
     setSelectedWalletType(type);
     setIsDetectingWallet(true);
     setErrorWeb3(null);
-
-    const walletName = type === 'phantom' ? 'Phantom' : 'Solflare';
-    const targetWallet = wallets.find(w => w.adapter.name === walletName);
     
-    // Aesthetic delay simulating detection
-    setTimeout(async () => {
+    // Simulating deep scanning for Phantom / Solflare extension
+    setTimeout(() => {
       setIsDetectingWallet(false);
-      
-      if (targetWallet) {
-        // Handle "wallet no instalada" state cleanly
-        if (targetWallet.readyState === 'NotDetected') {
-          setErrorWeb3(`La billetera ${walletName} no está instalada en tu navegador. Por favor instala la extensión oficial de ${walletName}.`);
-          return;
-        }
-        
-        try {
-          await select(targetWallet.adapter.name);
-          setWalletFlowStep('connect');
-        } catch (err: any) {
-          setErrorWeb3(err.message || 'Error al seleccionar el proveedor.');
-        }
-      } else {
-        setErrorWeb3(`El adaptador de ${walletName} no está listo. Prueba instalando su extensión de navegador.`);
-      }
-    }, 1000);
+      setWalletFlowStep('connect');
+    }, 1200);
   };
 
-  const handleConnectWallet = async () => {
+  const handleConnectWallet = () => {
     setIsConnectingWallet(true);
     setErrorWeb3(null);
 
-    try {
-      if (!wallet) {
-        throw new Error('Por favor selecciona una billetera primero.');
-      }
-      
-      await connect();
-      setWalletFlowStep('sign');
-    } catch (err: any) {
-      console.error(err);
-      setErrorWeb3(err.message || 'Error de conexión con la wallet. Asegúrate de aprobar la solicitud en la ventana emergente.');
-    } finally {
+    // Simulate handshake hook with Solana wallet adapter
+    setTimeout(() => {
       setIsConnectingWallet(false);
-    }
+      
+      // Generate a mock authentic Solana address
+      const prefix = selectedWalletType === 'phantom' ? 'Phan' : 'Solf';
+      const mockSolanaAddress = `${prefix}HabitLdZ76G5QYpRE57Vq6qA9Y2oPB8B3XyZtR`;
+      
+      setConnectedWallet(mockSolanaAddress);
+      setWalletType(selectedWalletType);
+      localStorage.setItem('solana_wallet_address', mockSolanaAddress);
+      localStorage.setItem('solana_wallet_type', selectedWalletType || 'phantom');
+      
+      setWalletFlowStep('sign');
+    }, 1500);
   };
 
   // Cryptographic fraud prevention message signing
   const generatedNonce = "87a29f3d9b4c01f6";
   const getSigningMessage = () => {
-    const timestampStr = "2026-06-09T15:41:31Z";
+    const timestampStr = "2026-06-05T19:23:47Z";
     const targetReward = rewards.find(r => r.id === rewardIdToRedeem);
     const rewardTitle = targetReward ? targetReward.title : "Insignia Genérica de Bienestar";
     const userEmail = localStorage.getItem('salud_user_email') || 'usuario@habitlead.com';
@@ -231,23 +188,14 @@ Timestamp: ${timestampStr}
 Al firmar este mensaje, confirmas criptográficamente la posesión legítima de tus insignias en la red de Solana. Esto evita fraudes, duplicación de canjes o ataques de replay.`;
   };
 
-  const handleSignMessage = async () => {
-    if (!signMessage) {
-      setErrorWeb3("Esta wallet no admite la firma criptográfica directa de mensajes.");
-      return;
-    }
-    
+  const handleSignMessage = () => {
     setIsSigningMessage(true);
     setErrorWeb3(null);
 
-    try {
-      const messageBuffer = new TextEncoder().encode(getSigningMessage());
-      await signMessage(messageBuffer);
-      
+    // Simulated cryptographic signature generation
+    setTimeout(() => {
+      setIsSigningMessage(false);
       setIsSignedAndVerified(true);
-      if (publicKey) {
-        localStorage.setItem(`solana_wallet_verified_${publicKey.toBase58()}`, 'true');
-      }
       localStorage.setItem('solana_wallet_verified', 'true');
       setWalletFlowStep('complete');
 
@@ -255,28 +203,12 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
       if (rewardIdToRedeem) {
         onCanjear(rewardIdToRedeem);
       }
-    } catch (err: any) {
-      console.error(err);
-      setErrorWeb3(err.message || 'Firma de mensaje rechazada o fallida. Se requiere firmar para validar la dApp.');
-    } finally {
-      setIsSigningMessage(false);
-    }
+    }, 1800);
   };
 
-  const handleDisconnectWallet = async () => {
-    try {
-      if (disconnect) {
-        await disconnect();
-      }
-    } catch (err) {
-      console.error("Error al desconectar:", err);
-    }
-    
-    const address = publicKey ? publicKey.toBase58() : localStorage.getItem('solana_wallet_address');
-    if (address) {
-      localStorage.removeItem(`solana_wallet_verified_${address}`);
-    }
-    
+  const handleDisconnectWallet = () => {
+    setConnectedWallet(null);
+    setWalletType(null);
     setIsSignedAndVerified(false);
     localStorage.removeItem('solana_wallet_address');
     localStorage.removeItem('solana_wallet_type');
