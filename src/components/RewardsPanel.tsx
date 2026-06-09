@@ -502,13 +502,7 @@ export const connectAndSign = async (walletType: 'phantom' | 'solflare', message
                 <p className="text-xs text-brand-dark/70 mt-1 line-clamp-2">{reward.description}</p>
               </div>
 
-              {/* Web3 Solana Tag if reward requires connection */}
-              {!reward.unlocked && (
-                <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
-                  <Wallet size={11} />
-                  <span>Requiere conectar Wallet de Solana</span>
-                </div>
-              )}
+
 
               <div className="mt-4 pt-3 border-t border-brand-malva-light/30 flex items-center justify-between">
                 {reward.unlocked ? (
