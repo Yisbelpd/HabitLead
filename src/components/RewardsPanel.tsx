@@ -254,7 +254,7 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
           </div>
 
           {/* Connected Wallet State Indicator */}
-          {connectedWallet ? (
+          {connectedWallet && (
             <div className="flex items-center gap-2 bg-gradient-to-r from-teal-50 to-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 shadow-sm text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-emerald-800 font-bold font-mono">
@@ -268,19 +268,6 @@ Al firmar este mensaje, confirmas criptográficamente la posesión legítima de 
                 Desconectar
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => {
-                setRewardIdToRedeem(null);
-                setIsWalletModalOpen(true);
-                setWalletFlowStep('select');
-                setErrorWeb3(null);
-              }}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold transition-all shadow-sm shadow-indigo-100 cursor-pointer"
-            >
-              <Wallet size={13} />
-              <span>Conectar Wallet (Solana)</span>
-            </button>
           )}
         </div>
       </div>
