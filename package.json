@@ -12,6 +12,11 @@
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.35",
+    "@solana/wallet-adapter-wallets": "^0.19.32",
+    "@solana/web3.js": "^1.95.8",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "canvas-confetti": "^1.9.4",
@@ -22,6 +27,16 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^6.2.3"
+  },
+  "overrides": {
+    "@solana/wallet-adapter-react": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    },
+    "@solana/wallet-adapter-react-ui": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
