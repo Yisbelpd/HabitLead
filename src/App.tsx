@@ -12,7 +12,27 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { SolanaWalletButton } from './components/SolanaWalletButton';
 
 export default function App() {
-  const { publicKey, connected } = useWallet();
+  const { publicKey: realPublicKey, connected: realConnected } = useWallet();
+  const [manualAddress, setManualAddress] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Initial fetch of manual address
+    const saved = localStorage.getItem('salud_manual_sol_address');
+    if (saved) setManualAddress(saved);
+
+    // Sync on custom event
+    const handleWalletChange = () => {
+      const saved = localStorage.getItem('salud_manual_sol_address');
+      setManualAddress(saved);
+    };
+    window.addEventListener('manual-wallet-changed', handleWalletChange);
+    return () => window.removeEventListener('manual-wallet-changed', handleWalletChange);
+  }, []);
+
+  const connected = realConnected || !!manualAddress;
+  const publicKey = realPublicKey 
+    ? realPublicKey 
+    : (manualAddress ? { toString: () => manualAddress } : null);
 
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
   const getTodayStr = (): string => {
