@@ -6,6 +6,7 @@ import { BadgesGrid } from './components/BadgesGrid';
 import { RewardsPanel } from './components/RewardsPanel';
 import { Icon } from './components/Icon';
 import { Home, ListTodo, Award, Gift } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export default function App() {
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
@@ -40,6 +41,7 @@ export default function App() {
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -219,6 +221,43 @@ export default function App() {
         });
         setTimeout(() => setShowNotification(null), 5000);
       }
+    }
+
+    // Check if the user completed all 5 areas for the selected date on this save
+    const previousCompletedCount = new Set(currentLogsMap.map(log => log.area)).size;
+    const updatedCurrentLogs = updatedLogs.filter(log => log.date === selectedDate);
+    const newCompletedCount = new Set(updatedCurrentLogs.map(log => log.area)).size;
+
+    if (newCompletedCount === 5 && previousCompletedCount < 5) {
+      // Trigger beautiful dual-burst confetti!
+      const duration = 1.5 * 1000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.8 },
+          colors: ['#a855f7', '#ec4899', '#3b82f6', '#fbbf24']
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.8 },
+          colors: ['#a855f7', '#ec4899', '#3b82f6', '#fbbf24']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      
+      frame();
+
+      // Show achievement celebration modal
+      setShowCelebration(true);
     }
   };
 
@@ -863,6 +902,70 @@ export default function App() {
             <Gift size={15} />
             <span>Recompensas</span>
           </button>
+        </div>
+      )}
+
+      {/* Modal de Logro Completo / Celebración de los 5 Hábitos */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="relative w-full max-w-sm overflow-hidden bg-gradient-to-b from-[#3a2c42] to-[#1c1421] border border-brand-malva/40 rounded-3xl p-6 text-center shadow-2xl flex flex-col items-center gap-5 animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
+            {/* Elegant glowing background rings */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-malva-light/20 rounded-full blur-3xl pointer-events-none" />
+            
+            {/* The achievement image with golden gradient borders */}
+            <div className="relative z-10 w-36 h-36 rounded-2xl overflow-hidden border-2 border-brand-malva-light/40 bg-zinc-900/40 p-2 flex items-center justify-center shadow-inner shadow-black/80">
+              <img
+                src="/src/assets/images/logro_bienestar_1780981006929.png"
+                alt="Logro Bienestar"
+                className="w-full h-full object-contain transform-gpu scale-102"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            {/* Achievement text with high readability */}
+            <div className="space-y-2 z-10">
+              <div className="flex items-center justify-center gap-1.5 text-amber-400 font-extrabold text-xs tracking-widest uppercase">
+                <Icon name="Crown" size={14} className="text-amber-400" />
+                <span>Excelente Liderazgo</span>
+              </div>
+              <h3 className="text-xl font-black text-white leading-tight">
+                ¡Día de Perfección Alcanzado!
+              </h3>
+              <p className="text-xs text-white/80 leading-relaxed font-semibold max-w-[280px] mx-auto">
+                Has registrado hábitos en las 5 secciones hoy. Sigue nutriendo tu disciplina, cuerpo, mente, y bienestar.
+              </p>
+            </div>
+
+            {/* Inspiring quote */}
+            <div className="w-full p-3.5 bg-white/5 border border-white/5 rounded-2xl italic text-[11px] text-brand-malva-light font-medium tracking-tight">
+              "El liderazgo comienza por uno mismo, y cada pequeña victoria diaria edifica el camino hacia la grandeza."
+            </div>
+
+            {/* Accept / Dismiss Button */}
+            <button
+              onClick={() => {
+                setShowCelebration(false);
+                // Also trigger a sweet small secondary confetti explosion for satisfying feedback!
+                confetti({
+                  particleCount: 50,
+                  spread: 60,
+                  origin: { y: 0.7 },
+                  colors: ['#A78BFA', '#F472B6', '#FBBF24']
+                });
+              }}
+              className="w-full z-10 py-3.5 bg-gradient-to-r from-brand-malva to-brand-dark hover:from-brand-malva-light hover:to-brand-malva active:scale-[0.99] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-malva/20 cursor-pointer transition-all duration-200 uppercase tracking-widest"
+            >
+              Continuar con mi día
+            </button>
+            
+            {/* Close icon button */}
+            <button
+              onClick={() => setShowCelebration(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white p-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <Icon name="X" size={14} />
+            </button>
+          </div>
         </div>
       )}
 
