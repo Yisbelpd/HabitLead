@@ -1,5 +1,47 @@
 {
   "entities": {
+    "CustomUser": {
+      "title": "CustomUser",
+      "description": "User credential details for the custom email-based authentication system.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user identifier."
+        },
+        "email": {
+          "type": "string",
+          "description": "Primary email address of the custom user."
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "SHA-256 hashed password of the user for security."
+        },
+        "secondaryEmail": {
+          "type": "string",
+          "description": "Secondary/Alternative email address registered for account recovery."
+        },
+        "recoveryToken": {
+          "type": "string",
+          "description": "Secure temporary recovery token for resetting password."
+        },
+        "recoveryTokenExpiry": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Expiration timestamp of the active password recovery token."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the custom account was registered."
+        }
+      },
+      "required": ["id", "email", "passwordHash", "secondaryEmail", "name", "createdAt"]
+    },
     "UserProfile": {
       "title": "UserProfile",
       "description": "User account registration profile representing public/admin accessible data.",
@@ -65,6 +107,18 @@
     }
   },
   "firestore": {
+    "/custom_users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/CustomUser"
+      },
+      "description": "Custom email and password registration details and credentials."
+    },
+    "/custom_users/{userId}/progress_history/{historyId}": {
+      "schema": {
+        "$ref": "#/entities/ProgressRecord"
+      },
+      "description": "Detailed historical daily habits progress for custom email-registered users."
+    },
     "/users/{userId}": {
       "schema": {
         "$ref": "#/entities/UserProfile"

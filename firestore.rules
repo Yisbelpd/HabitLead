@@ -41,6 +41,30 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidCustomUser(data) {
+      return data.keys().hasAll(['id', 'email', 'passwordHash', 'secondaryEmail', 'name', 'createdAt'])
+        && (data.keys().size() == 6 
+            || (data.keys().size() == 8 && data.keys().hasAll(['recoveryToken', 'recoveryTokenExpiry']))
+            || (data.keys().size() == 7 && data.keys().hasAll(['recoveryToken']))
+            || (data.keys().size() == 7 && data.keys().hasAll(['recoveryTokenExpiry'])))
+        && data.id is string
+        && data.id.size() <= 128
+        && data.email is string
+        && data.email.size() > 5
+        && data.email.size() <= 254
+        && data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
+        && data.passwordHash is string
+        && data.passwordHash.size() == 64
+        && data.secondaryEmail is string
+        && data.secondaryEmail.size() > 5
+        && data.secondaryEmail.size() <= 254
+        && data.secondaryEmail.matches('^[^@]+@[^@]+\\.[^@]+$')
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 120
+        && data.createdAt is timestamp;
+    }
+
     function isValidPrivateSensitive(data) {
       return data.keys().hasAll(['email'])
         && data.keys().size() == 1
@@ -74,6 +98,23 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow write: if false; // Only manageable through GCP console, Firebase Admin, or Functions
+    }
+
+    // Custom email authentication users collection
+    match /custom_users/{userId} {
+      allow get, list: if true; // Lookups permitted for registration checks, login, and recovery searches
+      allow create: if isValidId(userId)
+        && isValidCustomUser(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isValidId(userId)
+        && isValidCustomUser(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      // Subcollection for habits history tracking of custom users
+      match /progress_history/{historyId} {
+        allow read, write: if isValidId(userId) && isValidId(historyId);
+      }
     }
 
     // Users general profiles collection

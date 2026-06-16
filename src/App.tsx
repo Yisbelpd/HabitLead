@@ -27,41 +27,74 @@ import {
   recordDailyProgress, 
   fetchProgressHistory 
 } from './lib/firebaseService';
+import { EmailAuth } from './components/EmailAuth';
+import { saveCustomUserProgress, fetchCustomUserProgress } from './lib/customAuthService';
 
 export default function App() {
   const { publicKey, connected } = useWallet();
 
+  // Dynamic state to hold current date (updates on midnight / intervals)
+  const [currentDateObj, setCurrentDateObj] = useState<Date>(new Date());
+
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
-  const getTodayStr = (): string => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  const getTodayStr = (refDate: Date = currentDateObj): string => {
+    const year = refDate.getFullYear();
+    const month = String(refDate.getMonth() + 1).padStart(2, '0');
+    const day = String(refDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const getYesterdayStr = (): string => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  const getYesterdayStr = (refDate: Date = currentDateObj): string => {
+    const prev = new Date(refDate.getTime());
+    prev.setDate(prev.getDate() - 1);
+    const year = prev.getFullYear();
+    const month = String(prev.getMonth() + 1).padStart(2, '0');
+    const day = String(prev.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const TODAY_STR = getTodayStr();
-  const YESTERDAY_STR = getYesterdayStr();
+  const TODAY_STR = getTodayStr(currentDateObj);
+  const YESTERDAY_STR = getYesterdayStr(currentDateObj);
 
   // State
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(TODAY_STR);
-  const [username, setUsername] = useState<string>('Invitado');
-  const [userEmail, setUserEmail] = useState<string>('');
+  const [customUserSession, setCustomUserSession] = useState<{ email: string; name: string; id: string } | null>(() => {
+    const saved = localStorage.getItem('salud_custom_user_session');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const [username, setUsername] = useState<string>(() => {
+    const savedCustom = localStorage.getItem('salud_custom_user_session');
+    if (savedCustom) {
+      try {
+        return JSON.parse(savedCustom).name;
+      } catch (e) {}
+    }
+    const savedName = localStorage.getItem('salud_username');
+    return savedName || 'Invitado';
+  });
+
+  const [userEmail, setUserEmail] = useState<string>(() => {
+    const savedCustom = localStorage.getItem('salud_custom_user_session');
+    if (savedCustom) {
+      try {
+        return JSON.parse(savedCustom).email;
+      } catch (e) {}
+    }
+    return localStorage.getItem('salud_user_email') || '';
+  });
+
   const [isEditingName, setIsEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState('');
-  const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState(username);
+  const [emailInput, setEmailInput] = useState(userEmail);
   const [emailError, setEmailError] = useState('');
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -108,6 +141,14 @@ export default function App() {
       } else {
         setFirebaseUser(null);
         if (!connected) {
+          // If custom email auth is holding the active session, preserve it
+          if (customUserSession) {
+            setUserEmail(customUserSession.email);
+            setEmailInput(customUserSession.email);
+            setUsername(customUserSession.name);
+            setNameInput(customUserSession.name);
+            return;
+          }
           // Fall back to local guest profile if no other wallet is active
           const savedEmail = localStorage.getItem('salud_user_email');
           if (savedEmail) {
@@ -131,6 +172,64 @@ export default function App() {
 
     return () => unsubscribe();
   }, [connected]);
+
+  // Load custom email user's history logs from Firestore
+  useEffect(() => {
+    if (customUserSession) {
+      const loadHistory = async () => {
+        try {
+          const history = await fetchCustomUserProgress(customUserSession.id);
+          if (history.length > 0) {
+            const reconstructedLogs: HabitLog[] = [];
+            history.forEach((record, outerIndex) => {
+              record.completedHabits.forEach((area: any, index: number) => {
+                reconstructedLogs.push({
+                  id: `custom_firebase_${record.date}_${area}`,
+                  area: area as HabitArea,
+                  date: record.date,
+                  completed: true,
+                  value: 'Sincronizado de Firebase',
+                  timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
+                });
+              });
+            });
+            setLogs(reconstructedLogs);
+          }
+        } catch (err) {
+          console.error("Error loading custom user history:", err);
+        }
+      };
+      loadHistory();
+    }
+  }, [customUserSession]);
+
+  // Sincronización automática de calendario: chequea cada 20 segundos si cambió el día para actualizar las fechas al instante
+  useEffect(() => {
+    const checkDayInterval = setInterval(() => {
+      const now = new Date();
+      const currentDayStr = `${currentDateObj.getFullYear()}-${String(currentDateObj.getMonth() + 1).padStart(2, '0')}-${String(currentDateObj.getDate()).padStart(2, '0')}`;
+      const systemDayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      if (currentDayStr !== systemDayStr) {
+        console.log(`[Calendario] Cambio de fecha detectado: ${currentDayStr} -> ${systemDayStr}. Sincronizando...`);
+        setCurrentDateObj(now);
+        
+        // Si el usuario tenía seleccionado el "hoy" desactualizado, se lo actualizamos al nuevo "hoy"
+        if (selectedDate === currentDayStr) {
+          setSelectedDate(systemDayStr);
+        }
+
+        setShowNotification({
+          show: true,
+          title: '📅 Calendario Sincronizado',
+          desc: `Tu tablero de hábitos se ha actualizado automáticamente al nuevo día de hoy: ${systemDayStr}.`
+        });
+        setTimeout(() => setShowNotification(null), 5000);
+      }
+    }, 20000);
+
+    return () => clearInterval(checkDayInterval);
+  }, [currentDateObj, selectedDate]);
 
   // Load from localStorage on mount & when wallet switches (Only when Firebase isn't the active user session)
   useEffect(() => {
@@ -203,7 +302,27 @@ export default function App() {
   const saveLogs = async (newLogs: HabitLog[]) => {
     setLogs(newLogs);
     
-    if (auth.currentUser) {
+    if (customUserSession) {
+      const userId = customUserSession.id;
+      const dayLogs = newLogs.filter(l => l.date === selectedDate && l.completed);
+      const completedHabits = dayLogs.map(l => l.area);
+      const badgeIds = unlockedBadges.filter(b => b.unlockedAt).map(b => b.id);
+      const currentStreak = getStreakCount(newLogs);
+
+      try {
+        await saveCustomUserProgress(userId, {
+          date: selectedDate,
+          completedHabits,
+          badges: badgeIds,
+          currentStreak,
+          userId
+        });
+      } catch (err) {
+        console.error("Error updating progress in firebase for custom user:", err);
+      }
+
+      localStorage.setItem(`salud_habit_logs_${userId}`, JSON.stringify(newLogs));
+    } else if (auth.currentUser) {
       const userId = auth.currentUser.uid;
       const dayLogs = newLogs.filter(l => l.date === selectedDate && l.completed);
       const completedHabits = dayLogs.map(l => l.area);
@@ -276,11 +395,11 @@ export default function App() {
   };
 
   // Helper lists of dates for selection - dynamically computed based on today's actual date
-  const getDynamicDates = () => {
+  const getDynamicDates = (refDate: Date = currentDateObj) => {
     const list = [];
     const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     for (let i = 4; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(refDate.getTime());
       d.setDate(d.getDate() - i);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -296,7 +415,7 @@ export default function App() {
     return list;
   };
 
-  const AVAILABLE_DATES = getDynamicDates();
+  const AVAILABLE_DATES = getDynamicDates(currentDateObj);
 
   // Helper list to map area logs of the selected date
   const currentLogsMap = logs.filter(log => log.date === selectedDate);
@@ -579,10 +698,58 @@ export default function App() {
     }
   };
 
+  const handleCustomLoginSuccess = async (user: { email: string; name: string; id: string }) => {
+    setCustomUserSession(user);
+    localStorage.setItem('salud_custom_user_session', JSON.stringify(user));
+    setUserEmail(user.email);
+    setUsername(user.name);
+    setNameInput(user.name);
+    setEmailInput(user.email);
+
+    // Initial progress sync for this custom user
+    try {
+      const history = await fetchCustomUserProgress(user.id);
+      if (history.length > 0) {
+        const reconstructedLogs: HabitLog[] = [];
+        history.forEach((record, outerIndex) => {
+          record.completedHabits.forEach((area: any, index: number) => {
+            reconstructedLogs.push({
+              id: `custom_firebase_${record.date}_${area}`,
+              area: area as HabitArea,
+              date: record.date,
+              completed: true,
+              value: 'Sincronizado de Firebase',
+              timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
+            });
+          });
+        });
+        setLogs(reconstructedLogs);
+        localStorage.setItem(`salud_habit_logs_${user.id}`, JSON.stringify(reconstructedLogs));
+      } else {
+        setLogs([]);
+      }
+    } catch (err) {
+      console.error("Error fetching custom user progress:", err);
+    }
+  };
+
   // Complete reset to restart
   const handleResetApp = async () => {
     if (confirm('¿Estás seguro de reiniciar todos tus datos de hábitos y recompensas?')) {
-      if (auth.currentUser) {
+      if (customUserSession) {
+        const userId = customUserSession.id;
+        localStorage.removeItem(`salud_habit_logs_${userId}`);
+        localStorage.removeItem(`salud_rewards_${userId}`);
+        localStorage.removeItem(`salud_username_${userId}`);
+        localStorage.removeItem('salud_custom_user_session');
+        setCustomUserSession(null);
+        setLogs([]);
+        setRewards(INITIAL_REWARDS);
+        setUsername('Invitado');
+        setNameInput('Invitado');
+        setUserEmail('');
+        setEmailInput('');
+      } else if (auth.currentUser) {
         const userId = auth.currentUser.uid;
         localStorage.removeItem(`salud_habit_logs_${userId}`);
         localStorage.removeItem(`salud_rewards_${userId}`);
@@ -645,11 +812,16 @@ export default function App() {
         console.error("Firebase logout error:", err);
       }
     }
+    localStorage.removeItem('salud_custom_user_session');
+    setCustomUserSession(null);
     localStorage.removeItem('salud_user_email');
     setUserEmail('');
     setEmailInput('');
     setEmailError('');
     setFirebaseUser(null);
+    setUsername('Invitado');
+    setNameInput('Invitado');
+    setLogs([]);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -862,21 +1034,26 @@ export default function App() {
             El espacio ideal para registrar tu hidratación, movimiento, sueño, paz mental y alimentación balanceada. Desbloquea insignias exclusivas de la paleta y canjea contenidos de meditación de forma offline.
           </p>
 
-          {/* Onboarding Glassmorphism Login Card */}
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/80 text-brand-dark">
-            <h2 className="text-lg font-bold text-brand-dark mb-1 flex items-center gap-2 justify-center">
-              <Icon name="Unlock" className="text-brand-malva" size={18} />
-              Ingresar a mi Registro
-            </h2>
-            <p className="text-xs text-brand-dark/60 text-center mb-6">
-              Sincroniza y resguarda tu tablero de bienestar en la nube con Google o desde tu billetera.
-            </p>
+          {/* Primary High-Fidelity Email & Password Authenticator */}
+          <EmailAuth 
+            onLoginSuccess={handleCustomLoginSuccess}
+            onNotification={(title, desc) => {
+              setShowNotification({ show: true, title, desc });
+              setTimeout(() => setShowNotification(null), 4000);
+            }}
+          />
+
+          {/* Alternative Auth Provider Card (Google SSO & Solana Wallet) */}
+          <div className="bg-white/10 rounded-3xl p-6 max-w-sm w-full shadow-xl border border-white/15 text-white mt-4 text-center">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-malva-light mb-4">
+              U otras opciones corporativas
+            </h3>
 
             {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
             <button
               onClick={handleGoogleSignIn}
               type="button"
-              className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-md mb-2"
+              className="w-full py-3 bg-white hover:bg-neutral-50 text-neutral-800 rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-md mb-4"
             >
               <svg className="w-4 h-4 bg-white p-0.5 rounded-full" viewBox="0 0 24 24">
                 <path
@@ -896,83 +1073,32 @@ export default function App() {
                   d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
                 />
               </svg>
-              <span>Acceder con Google (Nube)</span>
+              <span>Acceder con Google</span>
             </button>
 
-            {/* Visual separator */}
+            {/* Separador elegante para Wallet Adapter */}
             <div className="relative my-4 flex items-center justify-center">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-150"></div>
+                <div className="w-full border-t border-white/10"></div>
               </div>
-              <span className="relative px-3 bg-white text-[8px] font-extrabold text-zinc-400 tracking-widest uppercase">
-                O ACCESO local / INVITADO
-              </span>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-extrabold text-brand-dark/70 mb-1.5 uppercase tracking-wider">
-                  Correo de Gmail
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-brand-dark/40 pointer-events-none">
-                    <Icon name="Mail" size={15} />
-                  </span>
-                  <input
-                    type="text"
-                    value={emailInput}
-                    onChange={(e) => {
-                      setEmailInput(e.target.value);
-                      setEmailError('');
-                    }}
-                    placeholder="tu-correo@gmail.com"
-                    className="w-full pl-10 pr-3 py-3 bg-brand-malva-light/20 border border-brand-malva-light rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva focus:ring-1 focus:ring-brand-malva text-brand-dark placeholder:text-brand-dark/45 transition-colors"
-                  />
-                </div>
-                {emailError && (
-                  <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100">
-                    <Icon name="AlertCircle" size={12} />
-                    {emailError}
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
-              >
-                <Icon name="LogIn" size={14} />
-                Comenzar mi Registro
-              </button>
-            </form>
-
-            {/* Separador elegante para Wallet Adapter */}
-            <div className="relative my-5 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-200"></div>
-              </div>
-              <span className="relative px-3.5 text-[9px] font-extrabold text-zinc-400 bg-white tracking-widest uppercase">
-                O Conecta tu Wallet
+              <span className="relative px-3 text-[8.5px] font-bold text-brand-malva-light bg-brand-dark/15 tracking-widest uppercase">
+                O Conecta tu Wallet Web3
               </span>
             </div>
 
             {/* Solana Wallet Adapter Selector */}
-            <SolanaWalletButton />
+            <div className="flex justify-center">
+              <SolanaWalletButton />
+            </div>
 
-            <div className="mt-6 pt-5 border-t border-brand-malva-light/60 text-center">
-              <div className="flex justify-center gap-4 text-brand-dark/50">
-                <div className="flex items-center gap-1 text-[10px] font-bold">
-                  <Icon name="Shield" size={11} className="text-emerald-700" />
-                  Privado
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-bold">
-                  <Icon name="Zap" size={11} className="text-amber-600" />
-                  Inmediato
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-bold">
-                  <Icon name="Heart" size={11} className="text-rose-600" />
-                  Holístico
-                </div>
+            <div className="mt-5 pt-4 border-t border-white/10 flex justify-center gap-4 text-white/60">
+              <div className="flex items-center gap-1 text-[10px] font-bold">
+                <Icon name="Shield" size={11} className="text-emerald-400" />
+                Seguro
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold">
+                <Icon name="Zap" size={11} className="text-amber-400" />
+                Sincronizado
               </div>
             </div>
           </div>
