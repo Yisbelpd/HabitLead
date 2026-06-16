@@ -75,7 +75,7 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [signUpName, setSignUpName] = useState('');
-  const [isCloudTab, setIsCloudTab] = useState(true);
+  const [showLocalOptions, setShowLocalOptions] = useState(false);
 
   // Listen to Google Firebase Authentication state
   useEffect(() => {
@@ -991,257 +991,172 @@ export default function App() {
           {/* Onboarding Glassmorphism Login Card */}
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/80 text-brand-dark">
             
-            {/* Segmented Control Tabs */}
-            <div className="flex bg-zinc-100 rounded-xl p-1 mb-6 border border-zinc-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <h2 className="text-[17px] font-extrabold text-brand-dark mb-1 flex items-center gap-1.5 justify-center">
+                <Icon name="ShieldCheck" className="text-brand-malva shrink-0" size={18} />
+                {isSignUpMode ? 'Nuevo Registro Seguro' : 'Ingresar a mi Cuenta'}
+              </h2>
+              <p className="text-[11px] text-brand-dark/65 text-center mb-4 leading-relaxed">
+                {isSignUpMode 
+                  ? 'Crea tu propia contraseña. Tu progreso quedará respaldado en Firebase.' 
+                  : 'Acceso seguro con contraseña o usando tu cuenta de Google.'}
+              </p>
+
+              {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
               <button
+                onClick={handleGoogleSignIn}
                 type="button"
-                onClick={() => {
-                  setIsCloudTab(true);
-                  setEmailError('');
-                  setEmailInput('');
-                  setPasswordInput('');
-                }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  isCloudTab
-                    ? 'bg-white text-zinc-900 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-850'
-                }`}
+                className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-sm mb-4"
               >
-                <Icon name="Cloud" size={14} className={isCloudTab ? 'text-brand-malva' : ''} />
-                Cuenta Nube ☁️
+                <svg className="w-4 h-4 bg-white p-0.5 rounded-full shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.04c1.7 0 3.2.58 4.4 1.71l3.3-3.3C17.7 1.58 15 1 12 1 7.37 1 3.42 3.66 1.48 7.5l3.86 3C6.26 7.42 8.9 5.04 12 5.04z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.45 12.27c0-.77-.07-1.54-.19-2.27H12v4.51h6.43c-.28 1.47-1.12 2.71-2.37 3.55l3.7 2.87c2.16-2 3.69-4.96 3.69-8.66z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.34 14.5c-.24-.73-.38-1.51-.38-2.5s.14-1.77.38-2.5L1.48 6.5C.53 8.35 0 10.42 0 12.5s.53 4.15 1.48 6l3.86-3z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
+                  />
+                </svg>
+                <span>Continuar con Google</span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCloudTab(false);
-                  setEmailError('');
-                  setEmailInput('');
-                  setPasswordInput('');
-                }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  !isCloudTab
-                    ? 'bg-white text-zinc-900 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-850'
-                }`}
-              >
-                <Icon name="User" size={14} className={!isCloudTab ? 'text-brand-malva' : ''} />
-                Acceso Local 🔑
-              </button>
-            </div>
 
-            {isCloudTab ? (
-              <div className="space-y-4 animate-in fade-in duration-200">
-                <h2 className="text-[17px] font-extrabold text-brand-dark mb-1 flex items-center gap-1.5 justify-center">
-                  <Icon name="ShieldCheck" className="text-brand-malva shrink-0" size={18} />
-                  {isSignUpMode ? 'Nuevo Registro Seguro' : 'Ingresar a mi Cuenta'}
-                </h2>
-                <p className="text-[11px] text-brand-dark/65 text-center mb-4 leading-relaxed">
-                  {isSignUpMode 
-                    ? 'Crea tu propia contraseña. Tu progreso quedará respaldado en Firebase.' 
-                    : 'Acceso seguro con contraseña o usando tu cuenta de Google.'}
-                </p>
-
-                {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
-                <button
-                  onClick={handleGoogleSignIn}
-                  type="button"
-                  className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-sm mb-4"
-                >
-                  <svg className="w-4 h-4 bg-white p-0.5 rounded-full shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.04c1.7 0 3.2.58 4.4 1.71l3.3-3.3C17.7 1.58 15 1 12 1 7.37 1 3.42 3.66 1.48 7.5l3.86 3C6.26 7.42 8.9 5.04 12 5.04z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M23.45 12.27c0-.77-.07-1.54-.19-2.27H12v4.51h6.43c-.28 1.47-1.12 2.71-2.37 3.55l3.7 2.87c2.16-2 3.69-4.96 3.69-8.66z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.34 14.5c-.24-.73-.38-1.51-.38-2.5s.14-1.77.38-2.5L1.48 6.5C.53 8.35 0 10.42 0 12.5s.53 4.15 1.48 6l3.86-3z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
-                    />
-                  </svg>
-                  <span>Continuar con Google</span>
-                </button>
-
-                {/* Separador */}
-                <div className="relative my-4 flex items-center justify-center">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-150"></div>
-                  </div>
-                  <span className="relative px-3.5 bg-white text-[8px] font-black text-zinc-400 tracking-widest uppercase">
-                    O CON CORREO Y CONTRASEÑA
-                  </span>
+              {/* Separador */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-150"></div>
                 </div>
-
-                <form onSubmit={handleEmailPasswordAuth} className="space-y-4">
-                  {isSignUpMode && (
-                    <div className="animate-in slide-in-from-top-1 px-0.5">
-                      <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
-                        Tu Nombre
-                      </label>
-                      <div className="relative">
-                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                          <Icon name="User" size={14} />
-                        </span>
-                        <input
-                          type="text"
-                          value={signUpName}
-                          onChange={(e) => {
-                            setSignUpName(e.target.value);
-                            setEmailError('');
-                          }}
-                          placeholder="Introduce tu nombre"
-                          className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="px-0.5">
-                    <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
-                      Correo Electrónico
-                    </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                        <Icon name="Mail" size={14} />
-                      </span>
-                      <input
-                        type="email"
-                        value={emailInput}
-                        onChange={(e) => {
-                          setEmailInput(e.target.value);
-                          setEmailError('');
-                        }}
-                        placeholder="tu-correo@ejemplo.com"
-                        className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="px-0.5">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[10px] font-extrabold text-brand-dark/70 uppercase tracking-wider">
-                        Contraseña
-                      </label>
-                      <span className="text-[9px] text-brand-dark/40 font-mono font-medium">mín. 6 letras</span>
-                    </div>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                        <Icon name="Key" size={14} />
-                      </span>
-                      <input
-                        type="password"
-                        value={passwordInput}
-                        onChange={(e) => {
-                          setPasswordInput(e.target.value);
-                          setEmailError('');
-                        }}
-                        placeholder="••••••••"
-                        className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {emailError && (
-                    <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100 leading-relaxed">
-                      <Icon name="AlertCircle" size={12} className="shrink-0" />
-                      {emailError}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
-                  >
-                    <Icon name={isSignUpMode ? 'UserPlus' : 'LogIn'} size={14} />
-                    {isSignUpMode ? 'Crear Cuenta y Respaldar' : 'Iniciar Sesión con Contraseña'}
-                  </button>
-                </form>
-
-                {/* Toggle register / login options */}
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSignUpMode(!isSignUpMode);
-                      setEmailError('');
-                    }}
-                    className="text-xs font-bold text-brand-malva hover:text-brand-malva-dark underline cursor-pointer"
-                  >
-                    {isSignUpMode 
-                      ? '¿Ya tienes una cuenta? Inicia Sesión' 
-                      : '¿No tienes contraseña? Crea tu cuenta aquí'}
-                  </button>
-                </div>
+                <span className="relative px-3.5 bg-white text-[8px] font-black text-zinc-400 tracking-widest uppercase">
+                  O CON CORREO Y CONTRASEÑA
+                </span>
               </div>
-            ) : (
-              <div className="space-y-4 animate-in fade-in duration-200">
-                <h2 className="text-[17px] font-extrabold text-brand-dark mb-1 flex items-center gap-1.5 justify-center">
-                  <Icon name="Sparkles" className="text-brand-malva shrink-0" size={18} />
-                  Acceso Local o Web3
-                </h2>
-                <p className="text-[11px] text-brand-dark/65 text-center mb-4 leading-relaxed">
-                  Ingresa con un correo de Gmail rápido o conecta tu billetera Solana de forma privada y sin contraseña.
-                </p>
 
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="px-0.5">
+              <form onSubmit={handleEmailPasswordAuth} className="space-y-4">
+                {isSignUpMode && (
+                  <div className="animate-in slide-in-from-top-1 px-0.5">
                     <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
-                      Correo de Gmail (Sin contraseña)
+                      Tu Nombre
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                        <Icon name="Mail" size={14} />
+                        <Icon name="User" size={14} />
                       </span>
                       <input
                         type="text"
-                        value={emailInput}
+                        value={signUpName}
                         onChange={(e) => {
-                          setEmailInput(e.target.value);
+                          setSignUpName(e.target.value);
                           setEmailError('');
                         }}
-                        placeholder="tu-correo@gmail.com"
+                        placeholder="Introduce tu nombre"
                         className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
                       />
                     </div>
-                    {emailError && (
-                      <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100 leading-relaxed">
-                        <Icon name="AlertCircle" size={12} className="shrink-0" />
-                        {emailError}
-                      </p>
-                    )}
                   </div>
+                )}
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-805 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                  >
-                    <Icon name="LogIn" size={14} />
-                    Comenzar de Forma Local
-                  </button>
-                </form>
-
-                {/* Solana separation separator */}
-                <div className="relative my-4 flex items-center justify-center">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-200"></div>
+                <div className="px-0.5">
+                  <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
+                    Correo Electrónico
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
+                      <Icon name="Mail" size={14} />
+                    </span>
+                    <input
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => {
+                        setEmailInput(e.target.value);
+                        setEmailError('');
+                      }}
+                      placeholder="tu-correo@ejemplo.com"
+                      className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
+                      required
+                    />
                   </div>
-                  <span className="relative px-3.5 text-[8px] font-black text-zinc-400 bg-white tracking-widest uppercase">
-                    O CONECTA TU VALLET
-                  </span>
                 </div>
 
-                {/* Solana Wallet Button */}
+                <div className="px-0.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-extrabold text-brand-dark/70 uppercase tracking-wider">
+                      Contraseña
+                    </label>
+                    <span className="text-[9px] text-brand-dark/40 font-mono font-medium">mín. 6 letras</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
+                      <Icon name="Key" size={14} />
+                    </span>
+                    <input
+                      type="password"
+                      value={passwordInput}
+                      onChange={(e) => {
+                        setPasswordInput(e.target.value);
+                        setEmailError('');
+                      }}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {emailError && (
+                  <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100 leading-relaxed">
+                    <Icon name="AlertCircle" size={12} className="shrink-0" />
+                    {emailError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
+                >
+                  <Icon name={isSignUpMode ? 'UserPlus' : 'LogIn'} size={14} />
+                  {isSignUpMode ? 'Crear Cuenta y Respaldar' : 'Iniciar Sesión con Contraseña'}
+                </button>
+              </form>
+
+              {/* Toggle register / login options */}
+              <div className="text-center pt-2 pb-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUpMode(!isSignUpMode);
+                    setEmailError('');
+                  }}
+                  className="text-xs font-bold text-brand-malva hover:text-brand-malva-dark underline cursor-pointer"
+                >
+                  {isSignUpMode 
+                    ? '¿Ya tienes una cuenta? Inicia Sesión' 
+                    : '¿No tienes contraseña? Crea tu cuenta aquí'}
+                </button>
+              </div>
+
+              {/* Separador elegante para Wallet Adapter */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-150"></div>
+                </div>
+                <span className="relative px-3.5 text-[8px] font-black text-zinc-400 bg-white tracking-widest uppercase">
+                  O COnecta tu wallet web3
+                </span>
+              </div>
+
+              {/* Solana Wallet Button with official logos */}
+              <div className="mb-2">
                 <SolanaWalletButton />
               </div>
-            )}
+            </div>
 
             <div className="mt-6 pt-5 border-t border-zinc-100 text-center">
               <div className="flex justify-center gap-4 text-brand-dark/50">

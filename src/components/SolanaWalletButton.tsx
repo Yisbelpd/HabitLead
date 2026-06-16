@@ -149,34 +149,40 @@ export function SolanaWalletButton() {
                 type="button"
                 onClick={() => handleWalletSelect(phantom)}
                 disabled={connecting}
-                className={`py-3 px-4 bg-zinc-950/40 border border-white/10 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
-                  activeWallet?.adapter.name === 'Phantom' && connecting ? 'border-purple-500 bg-purple-500/5' : 'hover:border-purple-500/40'
+                className={`py-3 px-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
+                  activeWallet?.adapter.name === 'Phantom' && connecting ? 'border-purple-500 bg-purple-900/10' : 'hover:border-purple-500/45'
                 }`}
               >
-                <div className="w-8 h-8 rounded-xl bg-purple-600/10 flex items-center justify-center p-1.5 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/10 flex items-center justify-center p-1 shrink-0">
                   {phantom.adapter.icon ? (
                     <img src={phantom.adapter.icon} alt="Phantom" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
                   ) : (
-                    <Icon name="Zap" size={18} className="text-purple-400" />
+                    <svg viewBox="0 0 128 128" className="w-6 h-6 object-contain" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="128" height="128" rx="32" fill="#512DA8" />
+                      <path d="M64 36c-17.67 0-32 14.33-32 32 0 14.4 7.6 20.8 12.8 25.6 1.6 1.6 3.2 1.6 4.8 0 3.2-3.2 4.8-4.8 8-8s8 1.6 12.8 1.6c4.8 0 9.6-1.6 12.8-1.6 3.2 3.2 4.8 4.8 8 8 1.6 1.6 3.2 1.6 4.8 0 5.2-4.8 12.8-11.2 12.8-25.6 0-17.67-14.33-32-32-32zm-12.8 24c2.65 0 4.8 2.15 4.8 4.8s-2.15 4.8-4.8 4.8-4.8-2.15-4.8-4.8 2.15-4.8 4.8-4.8zm25.6 0c2.65 0 4.8 2.15 4.8 4.8s-2.15 4.8-4.8 4.8-4.8-2.15-4.8-4.8 2.15-4.8 4.8-4.8z" fill="#FFF" />
+                    </svg>
                   )}
                 </div>
                 <div className="text-center">
                   <p className="font-extrabold text-white text-[11px]">Phantom</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 font-semibold">
-                    {phantom.readyState === WalletReadyState.NotDetected ? 'No instalado' : 'Conectar'}
+                    {phantom.readyState === WalletReadyState.NotDetected ? 'Conectar (Instalar)' : 'Conectar'}
                   </p>
                 </div>
                 {phantom.readyState === WalletReadyState.NotDetected && (
-                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-zinc-500" title="Extensión no detectada" />
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-500" title="Instalar / Enlazar" />
                 )}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => window.open('https://phantom.app/', '_blank')}
-                className="py-3 px-4 bg-zinc-950/20 border border-white/5 opacity-60 hover:opacity-100 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
+                className="py-3 px-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
               >
-                <Icon name="Download" size={16} className="text-purple-400" />
+                <svg viewBox="0 0 128 128" className="w-6 h-6 object-contain" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="128" height="128" rx="32" fill="#512DA8" />
+                  <path d="M64 36c-17.67 0-32 14.33-32 32 0 14.4 7.6 20.8 12.8 25.6 1.6 1.6 3.2 1.6 4.8 0 3.2-3.2 4.8-4.8 8-8s8 1.6 12.8 1.6c4.8 0 9.6-1.6 12.8-1.6 3.2 3.2 4.8 4.8 8 8 1.6 1.6 3.2 1.6 4.8 0 5.2-4.8 12.8-11.2 12.8-25.6 0-17.67-14.33-32-32-32zm-12.8 24c2.65 0 4.8 2.15 4.8 4.8s-2.15 4.8-4.8 4.8-4.8-2.15-4.8-4.8 2.15-4.8 4.8-4.8zm25.6 0c2.65 0 4.8 2.15 4.8 4.8s-2.15 4.8-4.8 4.8-4.8-2.15-4.8-4.8 2.15-4.8 4.8-4.8z" fill="#FFF" />
+                </svg>
                 <span className="text-[10px] text-zinc-400 font-bold">Instalar Phantom</span>
               </button>
             )}
@@ -187,34 +193,40 @@ export function SolanaWalletButton() {
                 type="button"
                 onClick={() => handleWalletSelect(solflare)}
                 disabled={connecting}
-                className={`py-3 px-4 bg-zinc-950/40 border border-white/10 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
-                  activeWallet?.adapter.name === 'Solflare' && connecting ? 'border-orange-500 bg-orange-500/5' : 'hover:border-orange-500/40'
+                className={`py-3 px-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] flex flex-col items-center gap-2 justify-center cursor-pointer relative overflow-hidden ${
+                  activeWallet?.adapter.name === 'Solflare' && connecting ? 'border-orange-500 bg-orange-950/10' : 'hover:border-orange-500/45'
                 }`}
               >
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center p-1.5 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center p-1 shrink-0">
                   {solflare.adapter.icon ? (
                     <img src={solflare.adapter.icon} alt="Solflare" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
                   ) : (
-                    <Icon name="Hexagon" size={18} className="text-orange-400" />
+                    <svg viewBox="0 0 128 128" className="w-6 h-6 object-contain" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="128" height="128" rx="32" fill="#FC841C" />
+                      <path d="M64 32c17.67 0 32 14.33 32 32v12.8c0 3.2-1.6 4.8-4.8 4.8h-6.4c-3.2 0-4.8-1.6-4.8-4.8V64c0-8.84-7.16-16-16-16s-16 7.16-16 16v12.8c0 3.2-1.6 4.8-4.8 4.8h-6.4C36.8 81.6 35.2 80 35.2 76.8V64c0-17.67 14.33-32 32-32z" fill="#FFF" />
+                    </svg>
                   )}
                 </div>
                 <div className="text-center">
                   <p className="font-extrabold text-white text-[11px]">Solflare</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 font-semibold">
-                    {solflare.readyState === WalletReadyState.NotDetected ? 'No instalado' : 'Conectar'}
+                    {solflare.readyState === WalletReadyState.NotDetected ? 'Conectar (Instalar)' : 'Conectar'}
                   </p>
                 </div>
                 {solflare.readyState === WalletReadyState.NotDetected && (
-                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-zinc-500" title="Extensión no detectada" />
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-orange-500" title="Instalar / Enlazar" />
                 )}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => window.open('https://solflare.com/', '_blank')}
-                className="py-3 px-4 bg-zinc-950/20 border border-white/5 opacity-60 hover:opacity-100 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
+                className="py-3 px-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-2 justify-center cursor-pointer"
               >
-                <Icon name="Download" size={16} className="text-orange-400" />
+                <svg viewBox="0 0 128 128" className="w-6 h-6 object-contain" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="128" height="128" rx="32" fill="#FC841C" />
+                  <path d="M64 32c17.67 0 32 14.33 32 32v12.8c0 3.2-1.6 4.8-4.8 4.8h-6.4c-3.2 0-4.8-1.6-4.8-4.8V64c0-8.84-7.16-16-16-16s-16 7.16-16 16v12.8c0 3.2-1.6 4.8-4.8 4.8h-6.4C36.8 81.6 35.2 80 35.2 76.8V64c0-17.67 14.33-32 32-32z" fill="#FFF" />
+                </svg>
                 <span className="text-[10px] text-zinc-400 font-bold">Instalar Solflare</span>
               </button>
             )}
