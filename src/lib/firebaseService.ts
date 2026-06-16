@@ -5,9 +5,6 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile,
   type User as FirebaseUser 
 } from 'firebase/auth';
 import { 
@@ -122,40 +119,6 @@ export async function loginWithGoogle(): Promise<FirebaseUser> {
     return result.user;
   } catch (error) {
     console.error("Login failed:", error);
-    throw error;
-  }
-}
-
-/**
- * Register a user with email and password, then set up Firestore profile.
- */
-export async function registerWithEmailAndPassword(email: string, password: string, name: string): Promise<FirebaseUser> {
-  try {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = credential.user;
-    
-    // Update local Firebase Auth user displayName
-    await updateProfile(user, { displayName: name });
-    
-    // Provision user properties safely in Firestore
-    await setupUserInFirestore(user, name);
-    
-    return user;
-  } catch (error) {
-    console.error("Registration with email & password failed:", error);
-    throw error;
-  }
-}
-
-/**
- * Log in a user with email and password.
- */
-export async function loginWithEmailAndPassword(email: string, password: string): Promise<FirebaseUser> {
-  try {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    return credential.user;
-  } catch (error) {
-    console.error("Login with email & password failed:", error);
     throw error;
   }
 }

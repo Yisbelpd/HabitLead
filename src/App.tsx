@@ -25,36 +25,32 @@ import {
   setupUserInFirestore, 
   getUserProfile, 
   recordDailyProgress, 
-  fetchProgressHistory,
-  registerWithEmailAndPassword,
-  loginWithEmailAndPassword
+  fetchProgressHistory 
 } from './lib/firebaseService';
 
 export default function App() {
   const { publicKey, connected } = useWallet();
 
-  // Dynamic state to hold current date (updates on midnight / intervals)
-  const [currentDateObj, setCurrentDateObj] = useState<Date>(new Date());
-
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
-  const getTodayStr = (refDate: Date = currentDateObj): string => {
-    const year = refDate.getFullYear();
-    const month = String(refDate.getMonth() + 1).padStart(2, '0');
-    const day = String(refDate.getDate()).padStart(2, '0');
+  const getTodayStr = (): string => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const getYesterdayStr = (refDate: Date = currentDateObj): string => {
-    const prev = new Date(refDate.getTime());
-    prev.setDate(prev.getDate() - 1);
-    const year = prev.getFullYear();
-    const month = String(prev.getMonth() + 1).padStart(2, '0');
-    const day = String(prev.getDate()).padStart(2, '0');
+  const getYesterdayStr = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const TODAY_STR = getTodayStr(currentDateObj);
-  const YESTERDAY_STR = getYesterdayStr(currentDateObj);
+  const TODAY_STR = getTodayStr();
+  const YESTERDAY_STR = getYesterdayStr();
 
   // State
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
@@ -70,12 +66,6 @@ export default function App() {
   const [showNotification, setShowNotification] = useState<{ show: boolean; title: string; desc: string } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [walletBadges, setWalletBadges] = useState<LocalBadge[]>([]);
-  
-  // Email/Password state parameters
-  const [passwordInput, setPasswordInput] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [signUpName, setSignUpName] = useState('');
-  const [showLocalOptions, setShowLocalOptions] = useState(false);
 
   // Listen to Google Firebase Authentication state
   useEffect(() => {
@@ -141,34 +131,6 @@ export default function App() {
 
     return () => unsubscribe();
   }, [connected]);
-
-  // Sincronización automática de calendario: chequea cada 20 segundos si cambió el día para actualizar las fechas al instante
-  useEffect(() => {
-    const checkDayInterval = setInterval(() => {
-      const now = new Date();
-      const currentDayStr = `${currentDateObj.getFullYear()}-${String(currentDateObj.getMonth() + 1).padStart(2, '0')}-${String(currentDateObj.getDate()).padStart(2, '0')}`;
-      const systemDayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-      if (currentDayStr !== systemDayStr) {
-        console.log(`[Calendario] Cambio de fecha detectado: ${currentDayStr} -> ${systemDayStr}. Sincronizando...`);
-        setCurrentDateObj(now);
-        
-        // Si el usuario tenía seleccionado el "hoy" desactualizado, se lo actualizamos al nuevo "hoy"
-        if (selectedDate === currentDayStr) {
-          setSelectedDate(systemDayStr);
-        }
-
-        setShowNotification({
-          show: true,
-          title: '📅 Calendario Sincronizado',
-          desc: `Tu tablero de hábitos se ha actualizado automáticamente al nuevo día de hoy: ${systemDayStr}.`
-        });
-        setTimeout(() => setShowNotification(null), 5000);
-      }
-    }, 20000);
-
-    return () => clearInterval(checkDayInterval);
-  }, [currentDateObj, selectedDate]);
 
   // Load from localStorage on mount & when wallet switches (Only when Firebase isn't the active user session)
   useEffect(() => {
@@ -314,11 +276,11 @@ export default function App() {
   };
 
   // Helper lists of dates for selection - dynamically computed based on today's actual date
-  const getDynamicDates = (refDate: Date = currentDateObj) => {
+  const getDynamicDates = () => {
     const list = [];
     const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     for (let i = 4; i >= 0; i--) {
-      const d = new Date(refDate.getTime());
+      const d = new Date();
       d.setDate(d.getDate() - i);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -334,7 +296,7 @@ export default function App() {
     return list;
   };
 
-  const AVAILABLE_DATES = getDynamicDates(currentDateObj);
+  const AVAILABLE_DATES = getDynamicDates();
 
   // Helper list to map area logs of the selected date
   const currentLogsMap = logs.filter(log => log.date === selectedDate);
@@ -523,92 +485,87 @@ export default function App() {
     }
   };
 
-  // Helper to sync and set state after any Firebase authentication
-  const handleFirebaseUserSession = async (user: any, nameSource?: string) => {
-    // Provision user properties safely in Firestore
-    await setupUserInFirestore(user, nameSource || user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead');
-    
-    const profile = await getUserProfile(user.uid);
-    const name = profile?.name || user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead';
-    
-    setUsername(name);
-    setNameInput(name);
-    setUserEmail(user.email || '');
-    setFirebaseUser(user);
-    
-    // Attempt two-way data sync: fetch their Firestore list
-    const history = await fetchProgressHistory(user.uid);
-    if (history.length > 0) {
-      const reconstructedLogs: HabitLog[] = [];
-      history.forEach((record, outerIndex) => {
-        record.completedHabits.forEach((area, index) => {
-          reconstructedLogs.push({
-            id: `firebase_${record.date}_${area}`,
-            area: area as HabitArea,
-            date: record.date,
-            completed: true,
-            value: 'Sincronizado de Firebase',
-            timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
-          });
-        });
-      });
-      setLogs(reconstructedLogs);
-    } else {
-      // Migration flow: sync standard local guest tracking logs to Firestore on their first cloud login!
-      const savedLogs = localStorage.getItem('salud_habit_logs');
-      if (savedLogs) {
-        try {
-          const parsed = JSON.parse(savedLogs) as HabitLog[];
-          if (parsed.length > 0) {
-            setLogs(parsed);
-            const distinctDates = Array.from(new Set(parsed.map(x => x.date)));
-            for (const dateStr of distinctDates) {
-              const dayLogs = parsed.filter(l => l.date === dateStr && l.completed);
-              const completedHabits = dayLogs.map(l => l.area);
-              // Compute corresponding badge list
-              const badgeIds = INITIAL_BADGES.map(badge => {
-                if (badge.id === 'badge_perfeccion') {
-                  const logsByDate: { [key: string]: Set<HabitArea> } = {};
-                  parsed.forEach(l => {
-                    if (!logsByDate[l.date]) logsByDate[l.date] = new Set<HabitArea>();
-                    logsByDate[l.date].add(l.area);
-                  });
-                  let perfectDate: string | undefined = undefined;
-                  for (const [d, areas] of Object.entries(logsByDate)) {
-                    if (areas.size === 5) { perfectDate = d; break; }
-                  }
-                  return perfectDate ? badge.id : '';
-                } else {
-                  const mathing = parsed.find(log => log.area === badge.area);
-                  return mathing ? badge.id : '';
-                }
-              }).filter(id => !!id);
-
-              await recordDailyProgress(user.uid, {
-                date: dateStr,
-                completedHabits,
-                badges: badgeIds,
-                currentStreak: getStreakCount(parsed)
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Failed to migrate guest logs to Firestore:", e);
-        }
-      }
-    }
-  };
-
   // Google Single Sign-In authentication with Firebase
   const handleGoogleSignIn = async () => {
     try {
       const user = await loginWithGoogle();
-      await handleFirebaseUserSession(user);
+      // Provision user properties safely in Firestore (split-collection style)
+      await setupUserInFirestore(user, user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead');
+      
+      const profile = await getUserProfile(user.uid);
+      const name = profile?.name || user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead';
+      
+      setUsername(name);
+      setNameInput(name);
+      setUserEmail(user.email || '');
+      setFirebaseUser(user);
+      
+      // Attempt two-way data sync: fetch their Firestore list
+      const history = await fetchProgressHistory(user.uid);
+      if (history.length > 0) {
+        const reconstructedLogs: HabitLog[] = [];
+        history.forEach((record, outerIndex) => {
+          record.completedHabits.forEach((area, index) => {
+            reconstructedLogs.push({
+              id: `firebase_${record.date}_${area}`,
+              area: area as HabitArea,
+              date: record.date,
+              completed: true,
+              value: 'Sincronizado de Firebase',
+              timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
+            });
+          });
+        });
+        setLogs(reconstructedLogs);
+      } else {
+        // Migration flow: sync standard local guest tracking logs to Firestore on their first cloud login!
+        const savedLogs = localStorage.getItem('salud_habit_logs');
+        if (savedLogs) {
+          try {
+            const parsed = JSON.parse(savedLogs) as HabitLog[];
+            if (parsed.length > 0) {
+              setLogs(parsed);
+              const distinctDates = Array.from(new Set(parsed.map(x => x.date)));
+              for (const dateStr of distinctDates) {
+                const dayLogs = parsed.filter(l => l.date === dateStr && l.completed);
+                const completedHabits = dayLogs.map(l => l.area);
+                // Compute corresponding badge list
+                const badgeIds = INITIAL_BADGES.map(badge => {
+                  if (badge.id === 'badge_perfeccion') {
+                    const logsByDate: { [key: string]: Set<HabitArea> } = {};
+                    parsed.forEach(l => {
+                      if (!logsByDate[l.date]) logsByDate[l.date] = new Set<HabitArea>();
+                      logsByDate[l.date].add(l.area);
+                    });
+                    let perfectDate: string | undefined = undefined;
+                    for (const [d, areas] of Object.entries(logsByDate)) {
+                      if (areas.size === 5) { perfectDate = d; break; }
+                    }
+                    return perfectDate ? badge.id : '';
+                  } else {
+                    const mathing = parsed.find(log => log.area === badge.area);
+                    return mathing ? badge.id : '';
+                  }
+                }).filter(id => !!id);
+
+                await recordDailyProgress(user.uid, {
+                  date: dateStr,
+                  completedHabits,
+                  badges: badgeIds,
+                  currentStreak: getStreakCount(parsed)
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Failed to migrate guess logs to Firestore:", e);
+          }
+        }
+      }
 
       setShowNotification({
         show: true,
         title: '¡Ingreso Exitoso!',
-        desc: `Bienvenido(a) ${auth.currentUser?.displayName || 'Miembro'}. Tu progreso se ha sincronizado en tiempo real.`
+        desc: `Bienvenido(a) ${name}. Tu progreso se ha sincronizado en tiempo real.`
       });
       setTimeout(() => setShowNotification(null), 4000);
     } catch (error) {
@@ -619,89 +576,6 @@ export default function App() {
         desc: 'No se pudo iniciar sesión con Google Firebase.'
       });
       setTimeout(() => setShowNotification(null), 4000);
-    }
-  };
-
-  // Email and Password Registration/Login with Firebase
-  const handleEmailPasswordAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = emailInput.trim();
-    const cleanPassword = passwordInput.trim();
-    const cleanName = signUpName.trim();
-    
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setEmailError('Por favor introduce un correo electrónico válido.');
-      return;
-    }
-    
-    if (!cleanPassword || cleanPassword.length < 6) {
-      setEmailError('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-    
-    if (isSignUpMode && !cleanName) {
-      setEmailError('Por favor introduce tu nombre para la cuenta.');
-      return;
-    }
-    
-    setEmailError('');
-    
-    try {
-      if (isSignUpMode) {
-        // Sign-up process
-        const user = await registerWithEmailAndPassword(cleanEmail, cleanPassword, cleanName);
-        await handleFirebaseUserSession(user, cleanName);
-        
-        setShowNotification({
-          show: true,
-          title: '¡Cuenta Creada!',
-          desc: `Bienvenido(a) ${cleanName}. Tu cuenta ha sido protegida y respaldada en Firebase.`
-        });
-        setTimeout(() => setShowNotification(null), 4500);
-      } else {
-        // Sign-in process
-        const user = await loginWithEmailAndPassword(cleanEmail, cleanPassword);
-        await handleFirebaseUserSession(user);
-        
-        setShowNotification({
-          show: true,
-          title: '¡Ingreso Exitoso!',
-          desc: 'Sesión iniciada correctamente. Cargamos todo tu progreso resguardado.'
-        });
-        setTimeout(() => setShowNotification(null), 4000);
-      }
-      
-      // Clear password field and signup name after successful auth
-      setPasswordInput('');
-      setSignUpName('');
-    } catch (error: any) {
-      console.error("Auth process error:", error);
-      let errMsg = 'Ocurrió un error al procesar tu solicitud.';
-      if (error && error.code) {
-        if (error.code === 'auth/wrong-password') {
-          errMsg = 'La contraseña es incorrecta. Inténtalo de nuevo.';
-        } else if (error.code === 'auth/user-not-found') {
-          errMsg = 'No se encontró ningún usuario con este correo electrónico.';
-        } else if (error.code === 'auth/email-already-in-use') {
-          errMsg = 'El correo electrónico ya está registrado por otro miembro.';
-        } else if (error.code === 'auth/weak-password') {
-          errMsg = 'La contraseña elegida es muy débil (mínimo 6 caracteres).';
-        } else if (error.code === 'auth/invalid-credential') {
-          errMsg = 'Credenciales inválidas. Verifica tu correo y contraseña.';
-        } else if (error.code === 'auth/invalid-email') {
-          errMsg = 'El formato del correo electrónico ingresado no es válido.';
-        }
-      } else if (error && error.message) {
-        errMsg = error.message;
-      }
-      
-      setEmailError(errMsg);
-      setShowNotification({
-        show: true,
-        title: 'Error de Acceso',
-        desc: errMsg
-      });
-      setTimeout(() => setShowNotification(null), 4500);
     }
   };
 
@@ -990,175 +864,102 @@ export default function App() {
 
           {/* Onboarding Glassmorphism Login Card */}
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/80 text-brand-dark">
-            
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <h2 className="text-[17px] font-extrabold text-brand-dark mb-1 flex items-center gap-1.5 justify-center">
-                <Icon name="ShieldCheck" className="text-brand-malva shrink-0" size={18} />
-                {isSignUpMode ? 'Nuevo Registro Seguro' : 'Ingresar a mi Cuenta'}
-              </h2>
-              <p className="text-[11px] text-brand-dark/65 text-center mb-4 leading-relaxed">
-                {isSignUpMode 
-                  ? 'Crea tu propia contraseña. Tu progreso quedará respaldado en Firebase.' 
-                  : 'Acceso seguro con contraseña o usando tu cuenta de Google.'}
-              </p>
+            <h2 className="text-lg font-bold text-brand-dark mb-1 flex items-center gap-2 justify-center">
+              <Icon name="Unlock" className="text-brand-malva" size={18} />
+              Ingresar a mi Registro
+            </h2>
+            <p className="text-xs text-brand-dark/60 text-center mb-6">
+              Sincroniza y resguarda tu tablero de bienestar en la nube con Google o desde tu billetera.
+            </p>
 
-              {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
-              <button
-                onClick={handleGoogleSignIn}
-                type="button"
-                className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-sm mb-4"
-              >
-                <svg className="w-4 h-4 bg-white p-0.5 rounded-full shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.04c1.7 0 3.2.58 4.4 1.71l3.3-3.3C17.7 1.58 15 1 12 1 7.37 1 3.42 3.66 1.48 7.5l3.86 3C6.26 7.42 8.9 5.04 12 5.04z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M23.45 12.27c0-.77-.07-1.54-.19-2.27H12v4.51h6.43c-.28 1.47-1.12 2.71-2.37 3.55l3.7 2.87c2.16-2 3.69-4.96 3.69-8.66z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.34 14.5c-.24-.73-.38-1.51-.38-2.5s.14-1.77.38-2.5L1.48 6.5C.53 8.35 0 10.42 0 12.5s.53 4.15 1.48 6l3.86-3z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
-                  />
-                </svg>
-                <span>Continuar con Google</span>
-              </button>
+            {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
+            <button
+              onClick={handleGoogleSignIn}
+              type="button"
+              className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-md mb-2"
+            >
+              <svg className="w-4 h-4 bg-white p-0.5 rounded-full" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5.04c1.7 0 3.2.58 4.4 1.71l3.3-3.3C17.7 1.58 15 1 12 1 7.37 1 3.42 3.66 1.48 7.5l3.86 3C6.26 7.42 8.9 5.04 12 5.04z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.45 12.27c0-.77-.07-1.54-.19-2.27H12v4.51h6.43c-.28 1.47-1.12 2.71-2.37 3.55l3.7 2.87c2.16-2 3.69-4.96 3.69-8.66z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.34 14.5c-.24-.73-.38-1.51-.38-2.5s.14-1.77.38-2.5L1.48 6.5C.53 8.35 0 10.42 0 12.5s.53 4.15 1.48 6l3.86-3z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
+                />
+              </svg>
+              <span>Acceder con Google (Nube)</span>
+            </button>
 
-              {/* Separador */}
-              <div className="relative my-4 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-zinc-150"></div>
-                </div>
-                <span className="relative px-3.5 bg-white text-[8px] font-black text-zinc-400 tracking-widest uppercase">
-                  O CON CORREO Y CONTRASEÑA
-                </span>
+            {/* Visual separator */}
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-150"></div>
               </div>
+              <span className="relative px-3 bg-white text-[8px] font-extrabold text-zinc-400 tracking-widest uppercase">
+                O ACCESO local / INVITADO
+              </span>
+            </div>
 
-              <form onSubmit={handleEmailPasswordAuth} className="space-y-4">
-                {isSignUpMode && (
-                  <div className="animate-in slide-in-from-top-1 px-0.5">
-                    <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
-                      Tu Nombre
-                    </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                        <Icon name="User" size={14} />
-                      </span>
-                      <input
-                        type="text"
-                        value={signUpName}
-                        onChange={(e) => {
-                          setSignUpName(e.target.value);
-                          setEmailError('');
-                        }}
-                        placeholder="Introduce tu nombre"
-                        className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="px-0.5">
-                  <label className="block text-[10px] font-extrabold text-brand-dark/70 mb-1 uppercase tracking-wider">
-                    Correo Electrónico
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                      <Icon name="Mail" size={14} />
-                    </span>
-                    <input
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => {
-                        setEmailInput(e.target.value);
-                        setEmailError('');
-                      }}
-                      placeholder="tu-correo@ejemplo.com"
-                      className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                      required
-                    />
-                  </div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold text-brand-dark/70 mb-1.5 uppercase tracking-wider">
+                  Correo de Gmail
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-brand-dark/40 pointer-events-none">
+                    <Icon name="Mail" size={15} />
+                  </span>
+                  <input
+                    type="text"
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      setEmailError('');
+                    }}
+                    placeholder="tu-correo@gmail.com"
+                    className="w-full pl-10 pr-3 py-3 bg-brand-malva-light/20 border border-brand-malva-light rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva focus:ring-1 focus:ring-brand-malva text-brand-dark placeholder:text-brand-dark/45 transition-colors"
+                  />
                 </div>
-
-                <div className="px-0.5">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[10px] font-extrabold text-brand-dark/70 uppercase tracking-wider">
-                      Contraseña
-                    </label>
-                    <span className="text-[9px] text-brand-dark/40 font-mono font-medium">mín. 6 letras</span>
-                  </div>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-brand-dark/40 pointer-events-none">
-                      <Icon name="Key" size={14} />
-                    </span>
-                    <input
-                      type="password"
-                      value={passwordInput}
-                      onChange={(e) => {
-                        setPasswordInput(e.target.value);
-                        setEmailError('');
-                      }}
-                      placeholder="••••••••"
-                      className="w-full pl-9 pr-3 py-2 bg-brand-malva-light/10 border border-brand-malva-light/60 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-malva text-brand-dark placeholder:text-brand-dark/45"
-                      required
-                    />
-                  </div>
-                </div>
-
                 {emailError && (
-                  <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100 leading-relaxed">
-                    <Icon name="AlertCircle" size={12} className="shrink-0" />
+                  <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1 justify-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-100">
+                    <Icon name="AlertCircle" size={12} />
                     {emailError}
                   </p>
                 )}
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
-                >
-                  <Icon name={isSignUpMode ? 'UserPlus' : 'LogIn'} size={14} />
-                  {isSignUpMode ? 'Crear Cuenta y Respaldar' : 'Iniciar Sesión con Contraseña'}
-                </button>
-              </form>
-
-              {/* Toggle register / login options */}
-              <div className="text-center pt-2 pb-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUpMode(!isSignUpMode);
-                    setEmailError('');
-                  }}
-                  className="text-xs font-bold text-brand-malva hover:text-brand-malva-dark underline cursor-pointer"
-                >
-                  {isSignUpMode 
-                    ? '¿Ya tienes una cuenta? Inicia Sesión' 
-                    : '¿No tienes contraseña? Crea tu cuenta aquí'}
-                </button>
               </div>
 
-              {/* Separador elegante para Wallet Adapter */}
-              <div className="relative my-4 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-zinc-150"></div>
-                </div>
-                <span className="relative px-3.5 text-[8px] font-black text-zinc-400 bg-white tracking-widest uppercase">
-                  O COnecta tu wallet web3
-                </span>
-              </div>
+              <button
+                type="submit"
+                className="w-full py-3 bg-meditation-gradient text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-brand-dark/15"
+              >
+                <Icon name="LogIn" size={14} />
+                Comenzar mi Registro
+              </button>
+            </form>
 
-              {/* Solana Wallet Button with official logos */}
-              <div className="mb-2">
-                <SolanaWalletButton />
+            {/* Separador elegante para Wallet Adapter */}
+            <div className="relative my-5 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200"></div>
               </div>
+              <span className="relative px-3.5 text-[9px] font-extrabold text-zinc-400 bg-white tracking-widest uppercase">
+                O Conecta tu Wallet
+              </span>
             </div>
 
-            <div className="mt-6 pt-5 border-t border-zinc-100 text-center">
+            {/* Solana Wallet Adapter Selector */}
+            <SolanaWalletButton />
+
+            <div className="mt-6 pt-5 border-t border-brand-malva-light/60 text-center">
               <div className="flex justify-center gap-4 text-brand-dark/50">
                 <div className="flex items-center gap-1 text-[10px] font-bold">
                   <Icon name="Shield" size={11} className="text-emerald-700" />
