@@ -17,6 +17,16 @@ import {
   ensureWalletProfile, 
   LocalBadge 
 } from './lib/walletPersistence';
+import { onAuthStateChanged } from 'firebase/auth';
+import { 
+  auth,
+  loginWithGoogle, 
+  logoutUser, 
+  setupUserInFirestore, 
+  getUserProfile, 
+  recordDailyProgress, 
+  fetchProgressHistory 
+} from './lib/firebaseService';
 
 export default function App() {
   const { publicKey, connected } = useWallet();
@@ -43,6 +53,7 @@ export default function App() {
   const YESTERDAY_STR = getYesterdayStr();
 
   // State
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(TODAY_STR);
@@ -56,8 +67,75 @@ export default function App() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [walletBadges, setWalletBadges] = useState<LocalBadge[]>([]);
 
-  // Load from localStorage on mount & when wallet switches
+  // Listen to Google Firebase Authentication state
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUserInstance) => {
+      if (firebaseUserInstance) {
+        setFirebaseUser(firebaseUserInstance);
+        setUserEmail(firebaseUserInstance.email || '');
+        setEmailInput(firebaseUserInstance.email || '');
+        
+        try {
+          const profile = await getUserProfile(firebaseUserInstance.uid);
+          const name = profile?.name || firebaseUserInstance.displayName || firebaseUserInstance.email?.split('@')[0] || 'Miembro HabitLead';
+          setUsername(name);
+          setNameInput(name);
+          setWalletBadges([]); // Reset Solana adapter badges if Google Auth is active
+          
+          // Re-populate historical HabitLogs with clean reconstructed state
+          const history = await fetchProgressHistory(firebaseUserInstance.uid);
+          if (history.length > 0) {
+            const reconstructedLogs: HabitLog[] = [];
+            history.forEach((record, outerIndex) => {
+              record.completedHabits.forEach((area, index) => {
+                reconstructedLogs.push({
+                  id: `firebase_${record.date}_${area}`,
+                  area: area as HabitArea,
+                  date: record.date,
+                  completed: true,
+                  value: 'Sincronizado de Firebase',
+                  timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
+                });
+              });
+            });
+            setLogs(reconstructedLogs);
+          } else {
+            setLogs([]);
+          }
+        } catch (error) {
+          console.error("Error reading setup profiles:", error);
+        }
+      } else {
+        setFirebaseUser(null);
+        if (!connected) {
+          // Fall back to local guest profile if no other wallet is active
+          const savedEmail = localStorage.getItem('salud_user_email');
+          if (savedEmail) {
+            setUserEmail(savedEmail);
+            setEmailInput(savedEmail);
+            const savedName = localStorage.getItem('salud_username');
+            setUsername(savedName || 'Invitado');
+            setNameInput(savedName || 'Invitado');
+            const savedLogs = localStorage.getItem('salud_habit_logs');
+            setLogs(savedLogs ? JSON.parse(savedLogs) : []);
+          } else {
+            setUserEmail('');
+            setEmailInput('');
+            setUsername('Invitado');
+            setNameInput('Invitado');
+            setLogs([]);
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [connected]);
+
+  // Load from localStorage on mount & when wallet switches (Only when Firebase isn't the active user session)
+  useEffect(() => {
+    if (auth.currentUser) return;
+
     if (connected && publicKey) {
       const walletAddress = publicKey.toString();
       const truncated = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
@@ -121,10 +199,30 @@ export default function App() {
     }
   }, [connected, publicKey]);
 
-  // Sync state to localStorage
-  const saveLogs = (newLogs: HabitLog[]) => {
+  // Sync state to Cloud Firestore (with LocalStorage fallbacks/backups)
+  const saveLogs = async (newLogs: HabitLog[]) => {
     setLogs(newLogs);
-    if (connected && publicKey) {
+    
+    if (auth.currentUser) {
+      const userId = auth.currentUser.uid;
+      const dayLogs = newLogs.filter(l => l.date === selectedDate && l.completed);
+      const completedHabits = dayLogs.map(l => l.area);
+      const badgeIds = unlockedBadges.filter(b => b.unlockedAt).map(b => b.id);
+      const currentStreak = getStreakCount(newLogs);
+      
+      try {
+        await recordDailyProgress(userId, {
+          date: selectedDate,
+          completedHabits,
+          badges: badgeIds,
+          currentStreak
+        });
+      } catch (err) {
+        console.error("Error updating progress in firebase:", err);
+      }
+      
+      localStorage.setItem(`salud_habit_logs_${userId}`, JSON.stringify(newLogs));
+    } else if (connected && publicKey) {
       const walletAddress = publicKey.toString();
       // Use helper to save structured logs & compute badges
       const { badges } = syncStateToWallet(walletAddress, newLogs, HABIT_AREAS);
@@ -143,10 +241,20 @@ export default function App() {
     localStorage.setItem(key, JSON.stringify(newRewards));
   };
 
-  const saveUsername = (newName: string) => {
+  const saveUsername = async (newName: string) => {
     setUsername(newName);
-    const key = connected && publicKey ? `salud_username_${publicKey.toString()}` : 'salud_username';
-    localStorage.setItem(key, newName);
+    
+    if (auth.currentUser) {
+      localStorage.setItem(`salud_username_${auth.currentUser.uid}`, newName);
+      try {
+        await setupUserInFirestore(auth.currentUser, newName);
+      } catch (err) {
+        console.error("Firestore user profile name error:", err);
+      }
+    } else {
+      const key = connected && publicKey ? `salud_username_${publicKey.toString()}` : 'salud_username';
+      localStorage.setItem(key, newName);
+    }
 
     if (connected && publicKey) {
       const walletAddress = publicKey.toString();
@@ -369,17 +477,129 @@ export default function App() {
   };
 
   // Profile management
-  const handleSaveName = () => {
-    if (nameInput.trim()) {
-      saveUsername(nameInput.trim());
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+    if (trimmed) {
+      saveUsername(trimmed);
       setIsEditingName(false);
     }
   };
 
+  // Google Single Sign-In authentication with Firebase
+  const handleGoogleSignIn = async () => {
+    try {
+      const user = await loginWithGoogle();
+      // Provision user properties safely in Firestore (split-collection style)
+      await setupUserInFirestore(user, user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead');
+      
+      const profile = await getUserProfile(user.uid);
+      const name = profile?.name || user.displayName || user.email?.split('@')[0] || 'Miembro HabitLead';
+      
+      setUsername(name);
+      setNameInput(name);
+      setUserEmail(user.email || '');
+      setFirebaseUser(user);
+      
+      // Attempt two-way data sync: fetch their Firestore list
+      const history = await fetchProgressHistory(user.uid);
+      if (history.length > 0) {
+        const reconstructedLogs: HabitLog[] = [];
+        history.forEach((record, outerIndex) => {
+          record.completedHabits.forEach((area, index) => {
+            reconstructedLogs.push({
+              id: `firebase_${record.date}_${area}`,
+              area: area as HabitArea,
+              date: record.date,
+              completed: true,
+              value: 'Sincronizado de Firebase',
+              timestamp: new Date(record.date).getTime() + (outerIndex * 100) + index
+            });
+          });
+        });
+        setLogs(reconstructedLogs);
+      } else {
+        // Migration flow: sync standard local guest tracking logs to Firestore on their first cloud login!
+        const savedLogs = localStorage.getItem('salud_habit_logs');
+        if (savedLogs) {
+          try {
+            const parsed = JSON.parse(savedLogs) as HabitLog[];
+            if (parsed.length > 0) {
+              setLogs(parsed);
+              const distinctDates = Array.from(new Set(parsed.map(x => x.date)));
+              for (const dateStr of distinctDates) {
+                const dayLogs = parsed.filter(l => l.date === dateStr && l.completed);
+                const completedHabits = dayLogs.map(l => l.area);
+                // Compute corresponding badge list
+                const badgeIds = INITIAL_BADGES.map(badge => {
+                  if (badge.id === 'badge_perfeccion') {
+                    const logsByDate: { [key: string]: Set<HabitArea> } = {};
+                    parsed.forEach(l => {
+                      if (!logsByDate[l.date]) logsByDate[l.date] = new Set<HabitArea>();
+                      logsByDate[l.date].add(l.area);
+                    });
+                    let perfectDate: string | undefined = undefined;
+                    for (const [d, areas] of Object.entries(logsByDate)) {
+                      if (areas.size === 5) { perfectDate = d; break; }
+                    }
+                    return perfectDate ? badge.id : '';
+                  } else {
+                    const mathing = parsed.find(log => log.area === badge.area);
+                    return mathing ? badge.id : '';
+                  }
+                }).filter(id => !!id);
+
+                await recordDailyProgress(user.uid, {
+                  date: dateStr,
+                  completedHabits,
+                  badges: badgeIds,
+                  currentStreak: getStreakCount(parsed)
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Failed to migrate guess logs to Firestore:", e);
+          }
+        }
+      }
+
+      setShowNotification({
+        show: true,
+        title: '¡Ingreso Exitoso!',
+        desc: `Bienvenido(a) ${name}. Tu progreso se ha sincronizado en tiempo real.`
+      });
+      setTimeout(() => setShowNotification(null), 4000);
+    } catch (error) {
+      console.error("Google sign in failure:", error);
+      setShowNotification({
+        show: true,
+        title: 'Error de Autenticación',
+        desc: 'No se pudo iniciar sesión con Google Firebase.'
+      });
+      setTimeout(() => setShowNotification(null), 4000);
+    }
+  };
+
   // Complete reset to restart
-  const handleResetApp = () => {
+  const handleResetApp = async () => {
     if (confirm('¿Estás seguro de reiniciar todos tus datos de hábitos y recompensas?')) {
-      if (connected && publicKey) {
+      if (auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        localStorage.removeItem(`salud_habit_logs_${userId}`);
+        localStorage.removeItem(`salud_rewards_${userId}`);
+        localStorage.removeItem(`salud_username_${userId}`);
+        setLogs([]);
+        setRewards(INITIAL_REWARDS);
+        setUsername('Invitado');
+        setNameInput('Invitado');
+        setUserEmail('');
+        setEmailInput('');
+        setFirebaseUser(null);
+        try {
+          await logoutUser();
+        } catch (e) {
+          console.error("Failed standard logout during reset:", e);
+        }
+      } else if (connected && publicKey) {
         const walletAddress = publicKey.toString();
         localStorage.removeItem(`salud_habit_logs_${walletAddress}`);
         localStorage.removeItem(`salud_rewards_${walletAddress}`);
@@ -417,11 +637,19 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (auth.currentUser) {
+      try {
+        await logoutUser();
+      } catch (err) {
+        console.error("Firebase logout error:", err);
+      }
+    }
     localStorage.removeItem('salud_user_email');
     setUserEmail('');
     setEmailInput('');
     setEmailError('');
+    setFirebaseUser(null);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -454,9 +682,9 @@ export default function App() {
     setShowNotification({
       show: true,
       title: '¡Acceso Correcto!',
-      desc: `Bienvenido de vuelta. Tu sesión ha sido iniciada de forma segura.`
+      desc: `Bienvenido de vuelta. Tu sesión ha sido iniciada de forma segura (Modo Local). Para guardar en la nube de Firebase, utiliza el botón de Google.`
     });
-    setTimeout(() => setShowNotification(null), 4000);
+    setTimeout(() => setShowNotification(null), 5000);
   };
 
   // Stats calculation
@@ -464,8 +692,8 @@ export default function App() {
   const progressPercentage = Math.round((completedTodayCount / 5) * 100);
 
   // Consecutive active record streak calculation
-  const getStreakCount = (): number => {
-    const datesWithLogs = Array.from(new Set(logs.map(l => l.date))).sort();
+  const getStreakCount = (customLogs: HabitLog[] = logs): number => {
+    const datesWithLogs = Array.from(new Set(customLogs.map(l => l.date))).sort();
     if (datesWithLogs.length === 0) return 0;
     
     // Quick reverse scan to count consecutive days
@@ -475,10 +703,10 @@ export default function App() {
     let checkDateString = TODAY_STR;
     
     // If there is no activity today, verify if there was yesterday to preserve streak
-    const hasToday = logs.some(l => l.date === TODAY_STR);
+    const hasToday = customLogs.some(l => l.date === TODAY_STR);
     if (!hasToday) {
       const yesterday = YESTERDAY_STR;
-      const hasYesterday = logs.some(l => l.date === yesterday);
+      const hasYesterday = customLogs.some(l => l.date === yesterday);
       if (hasYesterday) {
         checkDateString = yesterday;
       } else {
@@ -495,7 +723,7 @@ export default function App() {
 
     while (true) {
       const formatted = checkDate.toISOString().split('T')[0];
-      const hadLogsThisDay = logs.some(l => l.date === formatted);
+      const hadLogsThisDay = customLogs.some(l => l.date === formatted);
       if (hadLogsThisDay) {
         streak++;
         // Go 1 day back
@@ -641,8 +869,45 @@ export default function App() {
               Ingresar a mi Registro
             </h2>
             <p className="text-xs text-brand-dark/60 text-center mb-6">
-              Sincroniza y resguarda tu tablero de bienestar con tu correo electrónico de Google.
+              Sincroniza y resguarda tu tablero de bienestar en la nube con Google o desde tu billetera.
             </p>
+
+            {/* REAL GOOGLE SIGN-IN VIA FIREBASE AUTH */}
+            <button
+              onClick={handleGoogleSignIn}
+              type="button"
+              className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.01] flex items-center justify-center gap-2.5 cursor-pointer shadow-md mb-2"
+            >
+              <svg className="w-4 h-4 bg-white p-0.5 rounded-full" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5.04c1.7 0 3.2.58 4.4 1.71l3.3-3.3C17.7 1.58 15 1 12 1 7.37 1 3.42 3.66 1.48 7.5l3.86 3C6.26 7.42 8.9 5.04 12 5.04z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.45 12.27c0-.77-.07-1.54-.19-2.27H12v4.51h6.43c-.28 1.47-1.12 2.71-2.37 3.55l3.7 2.87c2.16-2 3.69-4.96 3.69-8.66z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.34 14.5c-.24-.73-.38-1.51-.38-2.5s.14-1.77.38-2.5L1.48 6.5C.53 8.35 0 10.42 0 12.5s.53 4.15 1.48 6l3.86-3z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.08.73-2.47 1.16-4.26 1.16-3.1 0-5.74-2.38-6.66-5.46l-3.86 3C3.42 20.34 7.37 23 12 23z"
+                />
+              </svg>
+              <span>Acceder con Google (Nube)</span>
+            </button>
+
+            {/* Visual separator */}
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-150"></div>
+              </div>
+              <span className="relative px-3 bg-white text-[8px] font-extrabold text-zinc-400 tracking-widest uppercase">
+                O ACCESO local / INVITADO
+              </span>
+            </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
