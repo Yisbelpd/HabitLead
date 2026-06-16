@@ -89,11 +89,27 @@ export function EmailAuth({ onLoginSuccess, onNotification }: EmailAuthProps) {
 
         const res = await registerCustomUser(email, password, secondaryEmail, name);
         if (res.success) {
-          onNotification('¡Cuenta Creada!', 'Se ha registrado tu usuario de forma segura con contraseña hasheada SHA-256.');
+          onNotification('¡Cuenta Creada Exitosamente!', 'Se ha registrado tu usuario y hemos hasheado tu contraseña con seguridad SHA-256.');
+          
+          try {
+            // Auto login after registration
+            const loginRes = await loginCustomUser(email, password);
+            if (loginRes.success && loginRes.user) {
+              onLoginSuccess({
+                email: loginRes.user.email,
+                name: loginRes.user.name,
+                id: loginRes.user.id
+              });
+              return;
+            }
+          } catch (autoLoginErr) {
+            console.error("Auto login immediately after registration failed", autoLoginErr);
+          }
+
           setMode('login');
-          // Prefill
+          // Prefill/fallback
           setPassword('');
-          setSuccessMessage('Cuenta creada exitosamente. Ya puedes iniciar sesión.');
+          setSuccessMessage('Cuenta creada exitosamente. Ya puedes iniciar sesión con tus credenciales.');
         }
       }
     } catch (err: any) {

@@ -235,6 +235,33 @@ export default function App() {
   useEffect(() => {
     if (auth.currentUser) return;
 
+    if (customUserSession) {
+      const userId = customUserSession.id;
+      setUserEmail(customUserSession.email);
+      setEmailInput(customUserSession.email);
+      setUsername(customUserSession.name);
+      setNameInput(customUserSession.name);
+
+      const savedLogs = localStorage.getItem(`salud_habit_logs_${userId}`);
+      if (savedLogs) {
+        try {
+          setLogs(JSON.parse(savedLogs));
+        } catch (e) {
+          setLogs([]);
+        }
+      } else {
+        setLogs([]);
+      }
+
+      const savedRewards = localStorage.getItem(`salud_rewards_${userId}`);
+      if (savedRewards) {
+        setRewards(JSON.parse(savedRewards));
+      } else {
+        setRewards(INITIAL_REWARDS);
+      }
+      return;
+    }
+
     if (connected && publicKey) {
       const walletAddress = publicKey.toString();
       const truncated = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
@@ -296,7 +323,7 @@ export default function App() {
         setRewards(INITIAL_REWARDS);
       }
     }
-  }, [connected, publicKey]);
+  }, [connected, publicKey, customUserSession]);
 
   // Sync state to Cloud Firestore (with LocalStorage fallbacks/backups)
   const saveLogs = async (newLogs: HabitLog[]) => {
@@ -306,7 +333,7 @@ export default function App() {
       const userId = customUserSession.id;
       const dayLogs = newLogs.filter(l => l.date === selectedDate && l.completed);
       const completedHabits = dayLogs.map(l => l.area);
-      const badgeIds = unlockedBadges.filter(b => b.unlockedAt).map(b => b.id);
+      const badgeIds = getUnlockedBadges(newLogs).filter(b => b.unlockedAt).map(b => b.id);
       const currentStreak = getStreakCount(newLogs);
 
       try {
@@ -326,7 +353,7 @@ export default function App() {
       const userId = auth.currentUser.uid;
       const dayLogs = newLogs.filter(l => l.date === selectedDate && l.completed);
       const completedHabits = dayLogs.map(l => l.area);
-      const badgeIds = unlockedBadges.filter(b => b.unlockedAt).map(b => b.id);
+      const badgeIds = getUnlockedBadges(newLogs).filter(b => b.unlockedAt).map(b => b.id);
       const currentStreak = getStreakCount(newLogs);
       
       try {
@@ -421,14 +448,14 @@ export default function App() {
   const currentLogsMap = logs.filter(log => log.date === selectedDate);
 
   // Badge unlock calculation
-  const getUnlockedBadges = (): Badge[] => {
+  const getUnlockedBadges = (customLogs: HabitLog[] = logs): Badge[] => {
     return INITIAL_BADGES.map(badge => {
       // Find if this area has ever been completed at least once in history
       if (badge.id === 'badge_perfeccion') {
         // Special badge: Has completed all 5 areas on any single date
         // Find if there is any date where logged areas count is 5
         const logsByDate: { [key: string]: Set<HabitArea> } = {};
-        logs.forEach(l => {
+        customLogs.forEach(l => {
           if (!logsByDate[l.date]) {
             logsByDate[l.date] = new Set<HabitArea>();
           }
@@ -448,7 +475,7 @@ export default function App() {
           unlockedAt: perfectDate
         };
       } else {
-        const matchingLog = logs.find(log => log.area === badge.area);
+        const matchingLog = customLogs.find(log => log.area === badge.area);
         return {
           ...badge,
           unlockedAt: matchingLog ? matchingLog.date : undefined
@@ -726,7 +753,39 @@ export default function App() {
         setLogs(reconstructedLogs);
         localStorage.setItem(`salud_habit_logs_${user.id}`, JSON.stringify(reconstructedLogs));
       } else {
-        setLogs([]);
+        // Migration flow: sync standard local guest tracking logs to Firestore on their first cloud login!
+        const savedLogs = localStorage.getItem('salud_habit_logs');
+        if (savedLogs) {
+          try {
+            const parsed = JSON.parse(savedLogs) as HabitLog[];
+            if (parsed.length > 0) {
+              setLogs(parsed);
+              const distinctDates = Array.from(new Set(parsed.map(x => x.date)));
+              for (const dateStr of distinctDates) {
+                const dayLogs = parsed.filter(l => l.date === dateStr && l.completed);
+                const completedHabits = dayLogs.map(l => l.area);
+                // Compute corresponding badge list
+                const badgeIds = getUnlockedBadges(parsed).filter(b => b.unlockedAt).map(b => b.id);
+
+                await saveCustomUserProgress(user.id, {
+                  date: dateStr,
+                  completedHabits,
+                  badges: badgeIds,
+                  currentStreak: getStreakCount(parsed),
+                  userId: user.id
+                });
+              }
+              localStorage.setItem(`salud_habit_logs_${user.id}`, JSON.stringify(parsed));
+            } else {
+              setLogs([]);
+            }
+          } catch (e) {
+            console.error("Failed to migrate guest logs to Firestore for custom user:", e);
+            setLogs([]);
+          }
+        } else {
+          setLogs([]);
+        }
       }
     } catch (err) {
       console.error("Error fetching custom user progress:", err);
