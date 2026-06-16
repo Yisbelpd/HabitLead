@@ -31,26 +31,28 @@ import {
 export default function App() {
   const { publicKey, connected } = useWallet();
 
+  // Dynamic state to hold current date (updates on midnight / intervals)
+  const [currentDateObj, setCurrentDateObj] = useState<Date>(new Date());
+
   // Dynamic dates based on the actual system date (keeps the calendar updated at all times)
-  const getTodayStr = (): string => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  const getTodayStr = (refDate: Date = currentDateObj): string => {
+    const year = refDate.getFullYear();
+    const month = String(refDate.getMonth() + 1).padStart(2, '0');
+    const day = String(refDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const getYesterdayStr = (): string => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  const getYesterdayStr = (refDate: Date = currentDateObj): string => {
+    const prev = new Date(refDate.getTime());
+    prev.setDate(prev.getDate() - 1);
+    const year = prev.getFullYear();
+    const month = String(prev.getMonth() + 1).padStart(2, '0');
+    const day = String(prev.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const TODAY_STR = getTodayStr();
-  const YESTERDAY_STR = getYesterdayStr();
+  const TODAY_STR = getTodayStr(currentDateObj);
+  const YESTERDAY_STR = getYesterdayStr(currentDateObj);
 
   // State
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
@@ -131,6 +133,34 @@ export default function App() {
 
     return () => unsubscribe();
   }, [connected]);
+
+  // Sincronización automática de calendario: chequea cada 20 segundos si cambió el día para actualizar las fechas al instante
+  useEffect(() => {
+    const checkDayInterval = setInterval(() => {
+      const now = new Date();
+      const currentDayStr = `${currentDateObj.getFullYear()}-${String(currentDateObj.getMonth() + 1).padStart(2, '0')}-${String(currentDateObj.getDate()).padStart(2, '0')}`;
+      const systemDayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      if (currentDayStr !== systemDayStr) {
+        console.log(`[Calendario] Cambio de fecha detectado: ${currentDayStr} -> ${systemDayStr}. Sincronizando...`);
+        setCurrentDateObj(now);
+        
+        // Si el usuario tenía seleccionado el "hoy" desactualizado, se lo actualizamos al nuevo "hoy"
+        if (selectedDate === currentDayStr) {
+          setSelectedDate(systemDayStr);
+        }
+
+        setShowNotification({
+          show: true,
+          title: '📅 Calendario Sincronizado',
+          desc: `Tu tablero de hábitos se ha actualizado automáticamente al nuevo día de hoy: ${systemDayStr}.`
+        });
+        setTimeout(() => setShowNotification(null), 5000);
+      }
+    }, 20000);
+
+    return () => clearInterval(checkDayInterval);
+  }, [currentDateObj, selectedDate]);
 
   // Load from localStorage on mount & when wallet switches (Only when Firebase isn't the active user session)
   useEffect(() => {
@@ -276,11 +306,11 @@ export default function App() {
   };
 
   // Helper lists of dates for selection - dynamically computed based on today's actual date
-  const getDynamicDates = () => {
+  const getDynamicDates = (refDate: Date = currentDateObj) => {
     const list = [];
     const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     for (let i = 4; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(refDate.getTime());
       d.setDate(d.getDate() - i);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -296,7 +326,7 @@ export default function App() {
     return list;
   };
 
-  const AVAILABLE_DATES = getDynamicDates();
+  const AVAILABLE_DATES = getDynamicDates(currentDateObj);
 
   // Helper list to map area logs of the selected date
   const currentLogsMap = logs.filter(log => log.date === selectedDate);
