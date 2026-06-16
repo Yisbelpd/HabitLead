@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account registration profile representing public/admin accessible data.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name or display name of the user."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"],
+          "description": "The authorization role of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the account was registered."
+        }
+      },
+      "required": ["name", "role", "createdAt"]
+    },
+    "PrivatePII": {
+      "title": "PrivatePII",
+      "description": "Sensitive personal information isolated for PII Protection.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Registered email address of the user."
+        }
+      },
+      "required": ["email"]
+    },
+    "ProgressRecord": {
+      "title": "ProgressRecord",
+      "description": "Daily wellness tracking and habit completion details.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The specific calendar date of this record (Format: YYYY-MM-DD)."
+        },
+        "completedHabits": {
+          "type": "array",
+          "description": "List of completed habit identifiers or names."
+        },
+        "badges": {
+          "type": "array",
+          "description": "Badges earned or unlocked at and prior to this day."
+        },
+        "currentStreak": {
+          "type": "integer",
+          "description": "Current active streak of consecutive days."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The registered identifier for user relationship integrity."
+        }
+      },
+      "required": ["date", "completedHabits", "badges", "currentStreak", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Registered users standard profiles."
+    },
+    "/users/{userId}/private/sensitive": {
+      "schema": {
+        "$ref": "#/entities/PrivatePII"
+      },
+      "description": "Subcollection isolating sensitive PII (email) from other users and administrative searches."
+    },
+    "/users/{userId}/progress_history/{historyId}": {
+      "schema": {
+        "$ref": "#/entities/ProgressRecord"
+      },
+      "description": "Subcollection storing detailed historical daily habits progress."
+    }
+  }
+}

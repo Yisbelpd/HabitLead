@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global safety net - Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Helper Functions (Pillar 3 & Phase 3 Primitives)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check if user is in the admins collection (bootstrapped admin)
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 3. Entity Validation Blueprints (Pillar 2/5/12/13)
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['name', 'role', 'createdAt'])
+        && data.keys().size() == 3
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 120
+        && data.role is string
+        && (data.role == 'user' || data.role == 'admin')
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPrivateSensitive(data) {
+      return data.keys().hasAll(['email'])
+        && data.keys().size() == 1
+        && data.email is string
+        && data.email.size() > 5
+        && data.email.size() <= 254
+        && data.email.matches('^[^@]+@[^@]+\\.[^@]+$');
+    }
+
+    function isValidProgressRecord(data, expectedUserId) {
+      return data.keys().hasAll(['date', 'completedHabits', 'badges', 'currentStreak', 'userId'])
+        && data.keys().size() == 5
+        && data.date is string
+        && data.date.size() == 10
+        && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.completedHabits is list
+        && data.completedHabits.size() <= 50
+        && (data.completedHabits.size() == 0 || data.completedHabits[0] is string)
+        && data.badges is list
+        && data.badges.size() <= 100
+        && (data.badges.size() == 0 || data.badges[0] is string)
+        && data.currentStreak is int
+        && data.currentStreak >= 0
+        && data.userId is string
+        && data.userId == expectedUserId; // Entity validation validates matching userId (Pillar 2)
+    }
+
+    // --- COLLECTION RULES ---
+
+    // Collection of Admins list (unmodifiable by clients for security)
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable through GCP console, Firebase Admin, or Functions
+    }
+
+    // Users general profiles collection
+    match /users/{userId} {
+      // Allow user themselves or an administrator to retrieve the document
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      
+      // Only admins can list users standard profiles. Zero client delegation list.
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn()
+        && isOwner(userId)
+        && isValidUserProfile(request.resource.data)
+        // User cannot self-escalate to admin (Pillar 3/4 and Phase 3 Privilege Escalation guard)
+        && request.resource.data.role == 'user'
+        // Temporal integrity (Pillar 13)
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isSignedIn()
+        && isOwner(userId)
+        && isValidUserProfile(request.resource.data)
+        // Role is immutable for owners to prevent self-elevation
+        && request.resource.data.role == resource.data.role
+        // CreatedAt is immortal
+        && request.resource.data.createdAt == resource.data.createdAt
+        // Limit modifications to 'name' field only (Pillar 4 and Phase 4 Action-Based Update constraint)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+
+      allow delete: if false; // Self-deletion forbidden directly from client for billing, security and audit trail
+
+      // User sensitive subcollection isolated for PII Protection (Pillar 6 Split Collection)
+      match /private/sensitive {
+        // STRICTLY isolated. Even admins cannot view email here to comply with protection rules.
+        allow get: if isSignedIn() && isOwner(userId);
+        allow list: if false; // Blanket queries totally forbidden.
+
+        allow create: if isSignedIn()
+          && isOwner(userId)
+          && isValidPrivateSensitive(request.resource.data);
+
+        allow update: if isSignedIn()
+          && isOwner(userId)
+          && isValidPrivateSensitive(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email']);
+
+        allow delete: if false;
+      }
+
+      // Progress History Subcollection
+      match /progress_history/{historyId} {
+        // Enforce document ID hardening (Pillar 3)
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(historyId) && (isOwner(userId) || isAdmin());
+        
+        // Strict relational query enforcer (Pillar 8). Prevents blanket queries without specifying the owner.
+        allow list: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+
+        allow create: if isSignedIn()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(historyId)
+          && isValidProgressRecord(request.resource.data, userId);
+
+        allow update: if isSignedIn()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(historyId)
+          && isValidProgressRecord(request.resource.data, userId)
+          // Immutable owner identification check
+          && request.resource.data.userId == resource.data.userId
+          // Action-Based Update (Pillar 4 / Phase 4 Pattern): Check keys modified during normal tracking
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedHabits', 'badges', 'currentStreak']);
+
+        allow delete: if isSignedIn()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(historyId);
+      }
+    }
+  }
+}
